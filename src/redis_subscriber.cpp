@@ -8,7 +8,8 @@ redis_subscriber::redis_subscriber(
     , message_queue_(connection_.get_executor(), 8)
     , on_log_()
     , tasks_cv_(connection_.get_executor())
-    , running_tasks_(0) {}
+    , running_tasks_(0)
+    , read_messages_(false) {}
 
 redis_subscriber::redis_subscriber(net::any_io_executor exec, string host,
                                    uint16_t port)
@@ -16,7 +17,8 @@ redis_subscriber::redis_subscriber(net::any_io_executor exec, string host,
     , message_queue_(exec, 8)
     , on_log_()
     , tasks_cv_(exec)
-    , running_tasks_(0) {}
+    , running_tasks_(0)
+    , read_messages_(false) {}
 
 awaitable<cpool::error> redis_subscriber::ping() {
     if (!running()) {
@@ -53,12 +55,14 @@ void redis_subscriber::start() {
     }
 
     running_tasks_++;
+    read_messages_ = true;
     co_spawn(connection_.get_executor(),
              std::bind(&redis_subscriber::read_messages, this), detached);
     log_message(log_level::debug, "monitoring for messages");
 }
 
 awaitable<void> redis_subscriber::stop() {
+    read_messages_ = false;
     message_queue_.close();
     connection_.cancel();
     co_await tasks_cv_.async_wait([&]() { return running_tasks_ == 0; });
@@ -72,9 +76,9 @@ awaitable<cpool::error> redis_subscriber::reset() {
 
 // Send Commands
 awaitable<cpool::error> redis_subscriber::send(redis_command command) {
-    cout << "getting connection for send" << endl;
+    log_message(log_level::trace, "getting connection for send");
     auto conn = co_await connection_.get();
-    cout << "got connection for send" << endl;
+    log_message(log_level::trace, "got connection for send");
     auto buffer = command.serialized_command();
     auto [write_error, bytes_written] =
         co_await conn->async_write(asio::buffer(buffer));
@@ -92,28 +96,19 @@ awaitable<void> redis_subscriber::read_messages() {
     log_message(log_level::trace, "starting to read messages");
     buffer_t read_buffer(4096);
 
-    while (true) {
+    while (read_messages_) {
         cpool::error_code err;
-        cout << "getting connection" << endl;
+        log_message(log_level::trace, "getting connection");
         auto conn = co_await connection_.get();
 
-        cout << "wait for read" << endl;
-        co_await conn->socket().async_wait(
-            net::ip::tcp::socket::wait_read,
-            net::redirect_error(use_awaitable, err));
-        if (err == net::error::operation_aborted) {
-            break;
-        }
-
-        cout << "reading" << endl;
+        log_message(log_level::trace, "reading");
         auto [read_error, bytes_read] =
             co_await conn->async_read_some(asio::buffer(read_buffer));
         if (read_error.error_code() == (int)net::error::operation_aborted) {
-            cout << "cancelled, wrapping up" << endl;
+            log_message(log_level::trace, "cancelled, wrapping up");
             break;
         }
         if (read_error || bytes_read == 0) {
-            cout << "unexpected error" << endl;
             log_message(
                 log_level::error,
                 std::error_code(redis_client_error_code::read_error).message());
@@ -140,11 +135,11 @@ redis_subscriber::parse_buffer(buffer_t::const_iterator begin,
         redis_reply reply;
         it = reply.load_data(it, end);
 
-        auto ec = channels::error_code();
+        cpool::error_code ec;
         auto tok = asio::redirect_error(asio::use_awaitable, ec);
-        co_await message_queue_.async_send(reply, tok);
-        if (ec == channels::errors::channel_closed) {
-            cout << "channel closed, wrapping up" << endl;
+        co_await message_queue_.async_send(ec, reply, tok);
+        if (ec) {
+            log_message(log_level::trace, "channel closed, wrapping up");
             co_return ec;
         }
     }
@@ -153,10 +148,10 @@ redis_subscriber::parse_buffer(buffer_t::const_iterator begin,
 }
 
 awaitable<redis_reply> redis_subscriber::read() {
-    auto ec = channels::error_code();
+    cpool::error_code ec;
     auto tok = asio::redirect_error(asio::use_awaitable, ec);
 
-    auto reply = co_await message_queue_.async_consume(tok);
+    auto reply = co_await message_queue_.async_receive(tok);
     if (ec) {
         co_return redis_reply(ec);
     }

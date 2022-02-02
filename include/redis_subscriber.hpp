@@ -3,7 +3,7 @@
 #include <queue>
 #include <string>
 
-#include <boost/channels/channel.hpp>
+#include <boost/asio/experimental/channel.hpp>
 #include <cpool/condition_variable.hpp>
 #include <cpool/tcp_connection.hpp>
 
@@ -19,10 +19,11 @@
 namespace redis {
 
 using namespace cpool;
-namespace channels = boost::channels;
+using namespace boost::asio::experimental;
 
 /**
- * @brief This class is used to coordinate communication with a Redis Server.
+ * @brief This class is used to coordinate communication with a Redis
+ * Server.
  */
 class redis_subscriber {
 
@@ -143,7 +144,7 @@ class redis_subscriber {
     redis_subscriber_connection connection_;
 
     /// The queue to read messages from
-    channels::channel<redis_reply> message_queue_;
+    channel<void(cpool::error_code, redis_reply)> message_queue_;
 
     // event handlers
     /// Called when there is a call to logMessage. Does nothing if set to
@@ -153,6 +154,7 @@ class redis_subscriber {
     /// track number of detached tasks
     cpool::condition_variable tasks_cv_;
     std::atomic_int running_tasks_;
+    std::atomic_bool read_messages_;
 };
 
 } // namespace redis

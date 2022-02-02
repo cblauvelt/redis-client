@@ -21,7 +21,7 @@ net::any_io_executor redis_subscriber_connection::get_executor() const {
 }
 
 awaitable<tcp_connection*> redis_subscriber_connection::get() {
-    log_message(redis::log_level::trace, "Getting connection");
+    // log_message(redis::log_level::trace, "Getting connection");
     if (connection_->connected()) {
         co_return connection_.get();
     }

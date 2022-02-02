@@ -3,7 +3,7 @@
 #include <string>
 #include <vector>
 
-#include "redis_value.hpp"
+// #include "redis_value.hpp"
 
 namespace redis {
 
@@ -54,31 +54,31 @@ struct redis_message {
      * @brief Creates a message that contains the result of the message.
      * @param message A redis array that contains the conents of the message.
      */
-    redis_message(redis_array message)
-        : channel()
-        , pattern()
-        , contents() {
-        if (message.size() == 3) {
-            if (message[0].as<string>().value_or("") != "message") {
-                return;
-            }
+    // redis_message(redis_array message)
+    //     : channel()
+    //     , pattern()
+    //     , contents() {
+    // if (message.size() == 3) {
+    //     if (message[0].as<string>().value_or("") != "message") {
+    //         return;
+    //     }
 
-            channel = message[1].as<string>().value_or("");
-            contents = message[2].as<string>().value_or("");
-            return;
-        }
+    //     channel = message[1].as<string>().value_or("");
+    //     contents = message[2].as<string>().value_or("");
+    //     return;
+    // }
 
-        if (message.size() == 4) {
-            if (message[0].as<string>().value_or("") != "pmessage") {
-                return;
-            }
+    // if (message.size() == 4) {
+    //     if (message[0].as<string>().value_or("") != "pmessage") {
+    //         return;
+    //     }
 
-            pattern = message[1].as<string>().value_or("");
-            channel = message[2].as<string>().value_or("");
-            contents = message[3].as<string>().value_or("");
-            return;
-        }
-    }
+    //     pattern = message[1].as<string>().value_or("");
+    //     channel = message[2].as<string>().value_or("");
+    //     contents = message[3].as<string>().value_or("");
+    //     return;
+    // }
+    // }
 
     /**
      * @brief Returns true if the channel or pattern is not empty

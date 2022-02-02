@@ -12,6 +12,7 @@
 
 #include "helper_functions.hpp"
 #include "redis_error.hpp"
+#include "redis_message.hpp"
 
 namespace redis {
 
@@ -161,6 +162,179 @@ template <> inline std::optional<string> redis_value::as<>() const {
     if (type_ == redis_type::error &&
         std::holds_alternative<redis_error>(value_)) {
         return string(std::get<redis_error>(value_).what());
+    }
+
+    return std::nullopt;
+}
+
+template <> inline std::optional<redis_error> redis_value::as<>() const {
+    if (type_ == redis_type::error &&
+        std::holds_alternative<redis_error>(value_)) {
+        return std::get<redis_error>(value_);
+    }
+
+    return std::nullopt;
+}
+
+template <> inline std::optional<int64_t> redis_value::as<>() const {
+    if (type_ == redis_type::integer &&
+        std::holds_alternative<int64_t>(value_)) {
+        return std::get<int64_t>(value_);
+    }
+
+    // if the string is a number, convert it
+    if (type_ == redis_type::bulk_string &&
+        std::holds_alternative<bulk_string>(value_)) {
+        bulk_string value = std::get<bulk_string>(value_);
+        try {
+            string conversion = vector_to_string(value);
+            return std::stoll(conversion);
+        } catch (...) {
+        }
+    }
+
+    return std::nullopt;
+}
+
+template <> inline std::optional<int> redis_value::as<>() const {
+    if (type_ == redis_type::integer &&
+        std::holds_alternative<int64_t>(value_)) {
+        return (int)std::get<int64_t>(value_);
+    }
+
+    // if the string is a number, convert it
+    if (type_ == redis_type::bulk_string &&
+        std::holds_alternative<bulk_string>(value_)) {
+        bulk_string value = std::get<bulk_string>(value_);
+        try {
+            string conversion = vector_to_string(value);
+            return std::stoi(conversion);
+        } catch (...) {
+        }
+    }
+
+    return std::nullopt;
+}
+
+template <> inline std::optional<float> redis_value::as<>() const {
+    if (type_ == redis_type::integer &&
+        std::holds_alternative<int64_t>(value_)) {
+        return (float)std::get<int64_t>(value_);
+    }
+
+    // if the string is a number, convert it
+    if (type_ == redis_type::bulk_string &&
+        std::holds_alternative<bulk_string>(value_)) {
+        bulk_string value = std::get<bulk_string>(value_);
+
+        try {
+            string conversion = vector_to_string(value);
+            return std::stof(conversion);
+        } catch (...) {
+        }
+    }
+
+    return std::nullopt;
+}
+
+template <> inline std::optional<double> redis_value::as<>() const {
+    if (type_ == redis_type::integer &&
+        std::holds_alternative<int64_t>(value_)) {
+        return (int)std::get<int64_t>(value_);
+    }
+
+    // if the string is a number, convert it
+    if (type_ == redis_type::bulk_string &&
+        std::holds_alternative<bulk_string>(value_)) {
+        bulk_string value = std::get<bulk_string>(value_);
+
+        try {
+            string conversion = vector_to_string(value);
+            return std::stod(conversion);
+        } catch (...) {
+            return std::nullopt;
+        }
+    }
+
+    return std::nullopt;
+}
+
+template <> inline std::optional<bulk_string> redis_value::as<>() const {
+    if (type_ == redis_type::simple_string &&
+        std::holds_alternative<string>(value_)) {
+        return string_to_vector(std::get<string>(value_));
+    }
+
+    if (type_ == redis_type::bulk_string &&
+        std::holds_alternative<bulk_string>(value_)) {
+        return std::get<bulk_string>(value_);
+    }
+
+    return std::nullopt;
+}
+
+template <> inline std::optional<redis_array> redis_value::as<>() const {
+    if (type_ == redis_type::array &&
+        std::holds_alternative<redis_array>(value_)) {
+        return std::get<redis_array>(value_);
+    }
+
+    return std::nullopt;
+}
+
+template <> inline std::optional<redis_message> redis_value::as<>() const {
+    if (type_ != redis_type::array ||
+        !std::holds_alternative<redis_array>(value_)) {
+        return std::nullopt;
+    }
+
+    auto arr = std::get<redis_array>(value_);
+    if (arr.size() < 3) {
+        return std::nullopt;
+    }
+
+    auto message_type = arr[0].as<string>().value_or("");
+    if (message_type != "message" && message_type != "pmessage") {
+        return std::nullopt;
+    }
+
+    redis_message message;
+    if (arr.size() == 3) {
+        if (arr[0].as<string>().value_or("") != "message") {
+            return std::nullopt;
+        }
+
+        message.channel = arr[1].as<string>().value_or("");
+        message.contents = arr[2].as<string>().value_or("");
+    }
+
+    if (arr.size() == 4) {
+        if (arr[0].as<string>().value_or("") != "pmessage") {
+            return std::nullopt;
+        }
+
+        message.pattern = arr[1].as<string>().value_or("");
+        message.channel = arr[2].as<string>().value_or("");
+        message.contents = arr[3].as<string>().value_or("");
+    }
+
+    return message;
+}
+
+template <> inline std::optional<bool> redis_value::as<>() const {
+    if (type_ == redis_type::integer &&
+        std::holds_alternative<int64_t>(value_)) {
+        return (bool)(std::get<int64_t>(value_));
+    }
+
+    if (type_ == redis_type::simple_string &&
+        std::holds_alternative<string>(value_)) {
+        return (std::get<string>(value_) == "OK");
+    }
+
+    if (type_ == redis_type::error &&
+        std::holds_alternative<redis_error>(value_)) {
+        return false;
     }
 
     return std::nullopt;
