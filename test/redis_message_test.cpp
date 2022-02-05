@@ -24,9 +24,9 @@ TEST(redis_message, MessageFromStrings) {
 }
 
 TEST(redis_message, MessageFromRedisArray) {
-    redis::redis_array messageParts = redis::redis_array{
-        redis::redis_value("message"),
-        redis::redis_value("something.otherthing"), redis::redis_value("42")};
+    std::vector<string> messageParts =
+        std::vector<string>{"message", "something.otherthing", "42"};
+
     redis::redis_message message(messageParts);
     EXPECT_TRUE(message.valid());
     EXPECT_FALSE(message.empty());
@@ -46,9 +46,8 @@ TEST(redis_message, PmessageFromStrings) {
 }
 
 TEST(redis_message, PmessageFromRedisArray) {
-    redis::redis_array messageParts = redis::redis_array{
-        redis::redis_value("pmessage"), redis::redis_value("something.*"),
-        redis::redis_value("something.otherthing"), redis::redis_value("42")};
+    std::vector<string> messageParts = std::vector<string>{
+        "pmessage", "something.*", "something.otherthing", "42"};
     redis::redis_message message(messageParts);
     EXPECT_TRUE(message.valid());
     EXPECT_FALSE(message.empty());
@@ -69,9 +68,8 @@ TEST(redis_message, BadMessageFromStrings) {
 }
 
 TEST(redis_message, BadMessageFromRedisArray) {
-    redis::redis_array messageParts = redis::redis_array{
-        redis::redis_value("not-a-message"),
-        redis::redis_value("something.otherthing"), redis::redis_value("42")};
+    std::vector<string> messageParts =
+        std::vector<string>{"not-a-message", "something.otherthing", "42"};
     redis::redis_message message(messageParts);
     EXPECT_FALSE(message.valid());
     EXPECT_TRUE(message.empty());

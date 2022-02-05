@@ -129,6 +129,8 @@ awaitable<void> run_tests(asio::io_context& ctx) {
     std::atomic<int> barrier;
     auto exec = co_await cpool::net::this_coro::executor;
     auto host = get_env_var("REDIS_HOST");
+
+    logMessage(redis::log_level::info, host);
     redis_client client(exec, host, 6379);
     client.set_logging_handler(
         std::bind(logMessage, std::placeholders::_1, std::placeholders::_2));

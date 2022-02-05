@@ -12,7 +12,7 @@
             "args": [],
             "stopAtEntry": false,
             "cwd": "${fileDirname}",
-            "environment": [],
+            "environment": [{ "name": "REDIS_HOST", "value": "192.168.137.225" }],
             "externalConsole": false,
             "MIMode": "gdb",
             "setupCommands": [

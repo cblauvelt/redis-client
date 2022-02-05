@@ -97,10 +97,9 @@ void testForType(std::string cmd, redis::redis_reply reply,
     EXPECT_EQ(reply.value().type(), type);
 }
 
-awaitable<void> logMessage(log_level target, log_level level,
-                           string_view message) {
+void logMessage(log_level target, log_level level, string_view message) {
     if (target > level) {
-        co_return;
+        return;
     }
 
     std::string levelString;
@@ -198,6 +197,7 @@ awaitable<void> run_tests(asio::io_context& ctx) {
 
         messages++;
     }
+    cout << "All messages received" << endl;
 
     // // shut down
     error = co_await subscriber.unsubscribe(channel);
