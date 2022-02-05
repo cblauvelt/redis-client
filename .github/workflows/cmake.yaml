@@ -14,10 +14,23 @@ jobs:
     container: cblauvelt/cpp-builder-gcc10:latest
     steps:
     - uses: actions/checkout@v2
-    - name: configure
-      run: cmake . -DCMAKE_BUILD_TYPE=Release -GNinja
-    - name: build
-      run: cmake --build .
-    - name: test
+      with:
+        path: main
+
+    - name: Checkout connection-pool
+      uses: actions/checkout@v2
+      with:
+        repository: cblauvelt/connection-pool
+        path: connection-pool
+        ref: refs/tags/v0.9.4
+
+    - name: Build Deps
+      run: conan create connection-pool
+
+    - name: Configure
+      run: cmake ./main -DCMAKE_BUILD_TYPE=Release -GNinja
+    - name: Build
+      run: cmake --build ./main
+    - name: Test
       run: ctest -C Release -T test --output-on-failure --timeout 10
       
