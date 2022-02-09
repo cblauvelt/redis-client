@@ -16,9 +16,11 @@ namespace {
 using string = std::string;
 using namespace redis;
 
-std::string get_env_var(std::string const& key) {
+const std::string DEFAULT_REDIS_HOST = "host.docker.internal";
+
+std::optional<std::string> get_env_var(std::string const& key) {
     char* val = getenv(key.c_str());
-    return val == NULL ? std::string("redis") : std::string(val);
+    return (val == NULL) ? std::nullopt : std::optional(std::string(val));
 }
 
 void testForError(std::string cmd, const redis::redis_reply& reply) {
@@ -144,7 +146,7 @@ awaitable<void> publish_messages(redis_client& client, std::string channel,
 awaitable<void> run_tests(asio::io_context& ctx) {
     std::atomic<int> barrier;
     auto exec = co_await cpool::net::this_coro::executor;
-    auto host = get_env_var("REDIS_HOST");
+    auto host = get_env_var("REDIS_HOST").value_or(DEFAULT_REDIS_HOST);
 
     redis_client client(exec, host, 6379);
     redis_subscriber subscriber(exec, host, 6379);

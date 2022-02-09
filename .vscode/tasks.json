@@ -43,5 +43,11 @@
             "command": "rm -rf build/*",
             "problemMatcher": []
         },
+        {
+            "label": "Conan Create",
+            "type": "shell",
+            "command": "conan create .",
+            "problemMatcher": []
+        },
     ]
 }

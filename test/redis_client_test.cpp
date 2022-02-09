@@ -3,6 +3,8 @@
 #include <string>
 #include <vector>
 
+#include <fmt/format.h>
+
 #include "commands-json.hpp"
 #include "commands.hpp"
 #include "redis_client.hpp"
@@ -15,9 +17,12 @@ namespace {
 
 using namespace redis;
 
-std::string get_env_var(std::string const& key) {
+const std::string DEFAULT_REDIS_HOST = "host.docker.internal";
+const std::string DEFAULT_REDIS_PORT = "6379";
+
+std::optional<std::string> get_env_var(std::string const& key) {
     char* val = getenv(key.c_str());
-    return val == NULL ? std::string("redis") : std::string(val);
+    return (val == NULL) ? std::nullopt : std::optional(std::string(val));
 }
 
 void testForError(std::string cmd, const redis::redis_reply& reply) {
@@ -128,7 +133,7 @@ awaitable<void> test_basic(redis_client& client, int c,
 awaitable<void> run_tests(asio::io_context& ctx) {
     std::atomic<int> barrier;
     auto exec = co_await cpool::net::this_coro::executor;
-    auto host = get_env_var("REDIS_HOST");
+    auto host = get_env_var("REDIS_HOST").value_or(DEFAULT_REDIS_HOST);
 
     logMessage(redis::log_level::info, host);
     redis_client client(exec, host, 6379);
@@ -147,7 +152,46 @@ awaitable<void> run_tests(asio::io_context& ctx) {
 
     while (barrier != 0) {
         cpool::timer timer(exec);
-        co_await timer.async_wait(std::chrono::milliseconds(100));
+        co_await timer.async_wait(100ms);
+    }
+
+    ctx.stop();
+    co_return;
+}
+
+awaitable<void> run_password_tests(asio::io_context& ctx) {
+    std::atomic<int> barrier;
+    auto exec = co_await cpool::net::this_coro::executor;
+    auto host = get_env_var("REDIS_PASSWORD_HOST").value_or(DEFAULT_REDIS_HOST);
+    auto portString =
+        get_env_var("REDIS_PASSWORD_PORT").value_or(DEFAULT_REDIS_PORT);
+    int port = std::stoi(portString);
+    auto password = get_env_var("REDIS_PASSWORD").value_or("");
+    auto config =
+        redis_client_config{}.set_host(host).set_port(port).set_password(
+            password);
+
+    logMessage(redis::log_level::info,
+               fmt::format("Logging into {}:{} with password {}", config.host,
+                           config.port, config.password));
+
+    redis_client client(exec, config);
+    client.set_logging_handler(
+        std::bind(logMessage, std::placeholders::_1, std::placeholders::_2));
+
+    auto reply = co_await client.ping();
+    testForString("PING", reply, "PONG");
+    EXPECT_TRUE(client.running());
+
+    barrier = 2;
+    int num_runners = barrier;
+    for (int i = 0; i < num_runners; i++) {
+        cpool::co_spawn(ctx, test_basic(client, i, barrier), cpool::detached);
+    }
+
+    while (barrier != 0) {
+        cpool::timer timer(exec);
+        co_await timer.async_wait(100ms);
     }
 
     ctx.stop();
@@ -276,7 +320,7 @@ awaitable<void> test_json(redis_client& client, int c,
 awaitable<void> run_json_tests(asio::io_context& ctx) {
     std::atomic<int> barrier;
     auto exec = co_await cpool::net::this_coro::executor;
-    auto host = get_env_var("REDIS_HOST");
+    auto host = get_env_var("REDIS_HOST").value_or(DEFAULT_REDIS_HOST);
     redis_client client(exec, host, 6379);
     client.set_logging_handler(
         std::bind(logMessage, std::placeholders::_1, std::placeholders::_2));
@@ -289,7 +333,7 @@ awaitable<void> run_json_tests(asio::io_context& ctx) {
 
     while (barrier != 0) {
         cpool::timer timer(exec);
-        co_await timer.async_wait(std::chrono::milliseconds(100));
+        co_await timer.async_wait(100ms);
     }
 
     auto reply = co_await client.send(flush_all());
@@ -303,6 +347,22 @@ TEST(Redis, ClientTest) {
     asio::io_context ctx(1);
 
     cpool::co_spawn(ctx, run_tests(std::ref(ctx)), cpool::detached);
+
+    ctx.run();
+}
+
+TEST(Redis, MultiClientTest) {
+    asio::io_context ctx(8);
+
+    cpool::co_spawn(ctx, run_tests(std::ref(ctx)), cpool::detached);
+
+    ctx.run();
+}
+
+TEST(Redis, PasswordClientTest) {
+    asio::io_context ctx(1);
+
+    cpool::co_spawn(ctx, run_password_tests(std::ref(ctx)), cpool::detached);
 
     ctx.run();
 }
