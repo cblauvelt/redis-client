@@ -26,6 +26,13 @@ struct redis_client_config {
     /// disconnect from the server will be attempted again
     bool rety_failed_commands;
 
+    /// username Used for authentication with the redis server. If password is
+    /// defined and username is blank, it is set to "default".
+    std::string username;
+
+    /// password Used for authentication with the redis server
+    std::string password;
+
     /// Creates a configuration with default parameters
     redis_client_config()
         : host("127.0.0.1")
@@ -52,6 +59,28 @@ struct redis_client_config {
      */
     redis_client_config set_port(uint16_t port) {
         this->port = port;
+        return *this;
+    }
+
+    /**
+     * @brief Sets the username of the server.
+     * @param username The username to authenticate with the redis server.
+     * @returns The configuration object so subsequent commands to set methods
+     * can be chained.
+     */
+    redis_client_config set_username(std::string username) {
+        this->username = username;
+        return *this;
+    }
+
+    /**
+     * @brief Sets the password of the server.
+     * @param password The password to authenticate with the redis server.
+     * @returns The configuration object so subsequent commands to set methods
+     * can be chained.
+     */
+    redis_client_config set_password(std::string password) {
+        this->password = password;
         return *this;
     }
 

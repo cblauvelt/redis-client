@@ -13,8 +13,39 @@ redis_client::redis_client(cpool::net::any_io_executor exec,
     , state_(state::not_running) {
 
     auto conn_creator = [&]() -> std::unique_ptr<cpool::tcp_connection> {
-        return std::make_unique<cpool::tcp_connection>(exec_, config_.host,
-                                                       config_.port);
+        auto conn = std::make_unique<cpool::tcp_connection>(exec_, config_.host,
+                                                            config_.port);
+        if (!config_.password.empty()) {
+            if (config_.username.empty()) {
+                config_.username = "default";
+            }
+
+            // login when a connection is created
+            conn->set_state_change_handler(
+                [&](cpool::tcp_connection* conn,
+                    const cpool::client_connection_state state)
+                    -> awaitable<cpool::error> {
+                    if (state == cpool::client_connection_state::connected) {
+                        auto username = this->config().username;
+                        auto password = this->config().password;
+                        auto loginCmd = redis_command(std::vector<std::string>{
+                            "AUTH", username, password});
+
+                        this->log_message(redis::log_level::trace,
+                                          "AUTH password");
+                        auto reply = co_await this->send(conn, loginCmd);
+                        if (reply.error()) {
+                            this->log_message(redis::log_level::error,
+                                              reply.error().message());
+                        }
+                        co_return reply.error();
+                    }
+
+                    co_return cpool::error();
+                });
+        }
+
+        return conn;
     };
 
     con_pool_ = std::make_unique<cpool::connection_pool<cpool::tcp_connection>>(
