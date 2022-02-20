@@ -33,8 +33,6 @@ using error_code = boost::system::error_code;
  */
 class redis_client : public enable_shared_from_this<redis_client> {
 
-    enum class state : uint8_t { not_running = 0, running };
-
   public:
     /**
      * @brief Creates a redis_client using default properties.
@@ -106,14 +104,12 @@ class redis_client : public enable_shared_from_this<redis_client> {
      * @param connection The connection to use to connect to the server.
      * @param command The redis_command to send to the server.
      */
-    awaitable<redis_reply> send(cpool::tcp_connection* connection,
-                                redis_command command);
-    /**
-     * @brief This is passed to the TcpConnection::setStateChangeHandler and
-     * calls additional error handlers based on the state of the connection.
-     */
-    void
-    on_connection_state_change(const cpool::client_connection_state& state);
+    [[nodiscard]] awaitable<redis_reply> send(cpool::tcp_connection* connection,
+                                              redis_command command);
+
+    [[nodiscard]] awaitable<cpool::error>
+    auth_client(cpool::tcp_connection* conn,
+                const cpool::client_connection_state state);
 
   private:
     /// The io_service that is used to schedule asynchronous events.
@@ -129,10 +125,6 @@ class redis_client : public enable_shared_from_this<redis_client> {
     /// Called when there is a call to log_message. Does nothing if set to
     /// nullptr.
     logging_handler on_log_;
-
-    // tracking state
-    /// Tracks the state of the client.
-    std::atomic<state> state_;
 };
 
 } // namespace redis

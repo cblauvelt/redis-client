@@ -6,3 +6,11 @@ services:
     restart: always
     ports:
       - "6379:6379"
+  redis-pass:
+    image: bitnami/redis:6.2.6
+    container_name: "redis-pass"
+    restart: always
+    environment:
+      - "REDIS_PASSWORD=s3cret"
+    ports:
+      - "6380:6379"

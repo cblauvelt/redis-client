@@ -10,18 +10,6 @@
             "problemMatcher": []
         },
         {
-            "label": "CMake Configure Debug",
-            "type": "shell",
-            "command": "cd build && cmake .. -DCMAKE_BUILD_TYPE=Debug -GNinja",
-            "problemMatcher": []
-        },
-        {
-            "label": "CMake Configure Release",
-            "type": "shell",
-            "command": "cd build && cmake .. -DCMAKE_BUILD_TYPE=Release -GNinja",
-            "problemMatcher": []
-        },
-        {
             "label": "Compile",
             "type": "shell",
             "command": "cmake --build build/",

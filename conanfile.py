@@ -33,7 +33,7 @@ class RedisClientConan(ConanFile):
         if self.settings.os == "Windows" and \
            self.settings.compiler == "Visual Studio" and \
            Version(self.settings.compiler.version.value) < "16":
-            raise ConanInvalidConfiguration("CPool does not support MSVC < 16")
+            raise ConanInvalidConfiguration("redis-client does not support MSVC < 16")
 
     def sanitize_version(self, version):
         return re.sub(r'^v', '', version)

@@ -9,8 +9,7 @@ redis_client::redis_client(cpool::net::any_io_executor exec,
     : exec_(std::move(exec))
     , config_(config)
     , con_pool_(nullptr)
-    , on_log_()
-    , state_(state::not_running) {
+    , on_log_() {
 
     auto conn_creator = [&]() -> std::unique_ptr<cpool::tcp_connection> {
         auto conn = std::make_unique<cpool::tcp_connection>(exec_, config_.host,
@@ -22,27 +21,8 @@ redis_client::redis_client(cpool::net::any_io_executor exec,
 
             // login when a connection is created
             conn->set_state_change_handler(
-                [&](cpool::tcp_connection* conn,
-                    const cpool::client_connection_state state)
-                    -> awaitable<cpool::error> {
-                    if (state == cpool::client_connection_state::connected) {
-                        auto username = this->config().username;
-                        auto password = this->config().password;
-                        auto loginCmd = redis_command(std::vector<std::string>{
-                            "AUTH", username, password});
-
-                        this->log_message(redis::log_level::trace,
-                                          "AUTH password");
-                        auto reply = co_await this->send(conn, loginCmd);
-                        if (reply.error()) {
-                            this->log_message(redis::log_level::error,
-                                              reply.error().message());
-                        }
-                        co_return reply.error();
-                    }
-
-                    co_return cpool::error();
-                });
+                std::bind(&redis_client::auth_client, this,
+                          std::placeholders::_1, std::placeholders::_2));
         }
 
         return conn;
@@ -57,8 +37,7 @@ redis_client::redis_client(cpool::net::any_io_executor exec, string host,
     : exec_(std::move(exec))
     , config_()
     , con_pool_()
-    , on_log_()
-    , state_(state::not_running) {
+    , on_log_() {
 
     config_.host = host;
     config_.port = port;
@@ -73,15 +52,23 @@ redis_client::redis_client(cpool::net::any_io_executor exec, string host,
 }
 
 void redis_client::set_config(redis_client_config config) {
-    if (state_ != state::not_running) {
-        return;
-    }
-
     config_ = config;
 
     auto conn_creator = [&]() -> std::unique_ptr<cpool::tcp_connection> {
-        return std::make_unique<cpool::tcp_connection>(exec_, config_.host,
-                                                       config_.port);
+        auto conn = std::make_unique<cpool::tcp_connection>(exec_, config_.host,
+                                                            config_.port);
+        if (!config_.password.empty()) {
+            if (config_.username.empty()) {
+                config_.username = "default";
+            }
+
+            // login when a connection is created
+            conn->set_state_change_handler(
+                std::bind(&redis_client::auth_client, this,
+                          std::placeholders::_1, std::placeholders::_2));
+        }
+
+        return conn;
     };
 
     con_pool_ = std::make_unique<cpool::connection_pool<cpool::tcp_connection>>(
@@ -124,6 +111,27 @@ awaitable<redis_reply> redis_client::send(cpool::tcp_connection* connection,
     reply.load_data(read_buffer.cbegin(), read_buffer.cbegin() + bytes_read);
 
     co_return reply;
+}
+
+awaitable<cpool::error>
+redis_client::auth_client(cpool::tcp_connection* conn,
+                          const cpool::client_connection_state state) {
+
+    if (state == cpool::client_connection_state::connected) {
+        auto username = this->config().username;
+        auto password = this->config().password;
+        auto loginCmd =
+            redis_command(std::vector<std::string>{"AUTH", username, password});
+
+        this->log_message(redis::log_level::trace, "AUTH password");
+        auto reply = co_await this->send(conn, loginCmd);
+        if (reply.error()) {
+            this->log_message(redis::log_level::error, reply.error().message());
+        }
+        co_return reply.error();
+    }
+
+    co_return cpool::error();
 }
 
 void redis_client::set_logging_handler(logging_handler handler) {
