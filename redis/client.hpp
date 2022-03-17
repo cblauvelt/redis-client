@@ -15,42 +15,41 @@
 #include <cpool/tcp_connection.hpp>
 
 #include "helper_functions.hpp"
-#include "redis_client_config.hpp"
-#include "redis_command.hpp"
-#include "redis_defs.hpp"
-#include "redis_reply.hpp"
-#include "redis_subscriber.hpp"
-#include "redis_value.hpp"
+#include "redis/client_config.hpp"
+#include "redis/command.hpp"
+#include "redis/reply.hpp"
+#include "redis/subscriber.hpp"
+#include "redis/value.hpp"
+#include "types.hpp"
 
 namespace redis {
 
 namespace asio = boost::asio;
 using boost::asio::awaitable;
-using error_code = boost::system::error_code;
 
 /**
  * @brief This class is used to coordinate communication with a Redis Server.
  */
-class redis_client : public enable_shared_from_this<redis_client> {
+class client : public enable_shared_from_this<client> {
 
   public:
     /**
-     * @brief Creates a redis_client using default properties.
+     * @brief Creates a client using default properties.
      * @param exec The Asio executor to use for event handling.
      * @param config The configuration object
      */
-    redis_client(cpool::net::any_io_executor exec, redis_client_config config);
+    client(cpool::net::any_io_executor exec, client_config config);
 
     /**
-     * @brief Creates a redis_client using default properties.
+     * @brief Creates a client using default properties.
      * @param exec The Asio executor to use for event handling.
      * @param host The IP Address or hostname of the server.
      * @param port The remote port on which the server is listening.
      */
-    redis_client(cpool::net::any_io_executor exec, string host, uint16_t port);
+    client(cpool::net::any_io_executor exec, string host, uint16_t port);
 
-    redis_client(const redis_client&) = delete;
-    redis_client& operator=(const redis_client&) = delete;
+    client(const client&) = delete;
+    client& operator=(const client&) = delete;
 
     /**
      * @brief Sets the configuration object if the client is not running.
@@ -60,12 +59,12 @@ class redis_client : public enable_shared_from_this<redis_client> {
      * @section Warning: This function will do nothing if the client is already
      * running, that is, after a call to start().
      */
-    void set_config(redis_client_config config);
+    void set_config(client_config config);
 
     /**
      * @brief The current configuration of the client.
      */
-    redis_client_config config() const;
+    client_config config() const;
 
     /**
      * @brief Sends a PING command to the server to test connectivity.
@@ -75,9 +74,9 @@ class redis_client : public enable_shared_from_this<redis_client> {
 
     /**
      * @brief Fetches a new connection and sends the command to the server.
-     * @param command The redis_command to send to the server.
+     * @param command The command to send to the server.
      */
-    [[nodiscard]] awaitable<redis_reply> send(redis_command command);
+    [[nodiscard]] awaitable<redis_reply> send(command command);
 
     /**
      * @brief Sets the callback to be executed when an error message is
@@ -102,10 +101,10 @@ class redis_client : public enable_shared_from_this<redis_client> {
     /**
      * @brief Used to send the command to the server.
      * @param connection The connection to use to connect to the server.
-     * @param command The redis_command to send to the server.
+     * @param command The command to send to the server.
      */
     [[nodiscard]] awaitable<redis_reply> send(cpool::tcp_connection* connection,
-                                              redis_command command);
+                                              command command);
 
     [[nodiscard]] awaitable<cpool::error>
     auth_client(cpool::tcp_connection* conn,
@@ -116,7 +115,7 @@ class redis_client : public enable_shared_from_this<redis_client> {
     cpool::net::any_io_executor exec_;
 
     /// The configuration options of the client.
-    redis_client_config config_;
+    client_config config_;
 
     /// The connection to the server. @see cpool::tcp_connection.
     std::unique_ptr<cpool::connection_pool<cpool::tcp_connection>> con_pool_;

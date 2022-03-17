@@ -1,10 +1,10 @@
-#include "redis_command.hpp"
+#include "redis/command.hpp"
 
 namespace redis {
 
 using string = std::string;
 
-redis_command::redis_command(string command) {
+command::command(string command) {
     auto it = command.begin();
     auto end = command.end();
     string member;
@@ -13,7 +13,6 @@ redis_command::redis_command(string command) {
     while (it != end) {
         if (*it == delim) {        // add a new member
             if (!member.empty()) { // but not if it's empty
-                // cout << "Adding " << member << endl;
                 commands_.push_back(member);
             }
             member.clear(); // Clear member to start
@@ -42,14 +41,14 @@ redis_command::redis_command(string command) {
     }
 }
 
-redis_command::redis_command(std::vector<string> commands)
+command::command(std::vector<string> commands)
     : commands_(std::move(commands)) {}
 
-bool redis_command::empty() const { return commands_.empty(); }
+bool command::empty() const { return commands_.empty(); }
 
-std::vector<string> redis_command::commands() const { return commands_; }
+std::vector<string> command::commands() const { return commands_; }
 
-string redis_command::serialized_command() const {
+string command::serialized_command() const {
     string retVal;
     if (empty()) {
         return retVal;
@@ -73,12 +72,10 @@ string redis_command::serialized_command() const {
     return retVal;
 }
 
-bool redis_command::operator==(const redis_command& rhs) const {
+bool command::operator==(const command& rhs) const {
     return (commands_ == rhs.commands_);
 }
 
-bool redis_command::operator!=(const redis_command& rhs) const {
-    return !(*this == rhs);
-}
+bool command::operator!=(const command& rhs) const { return !(*this == rhs); }
 
 } // namespace redis

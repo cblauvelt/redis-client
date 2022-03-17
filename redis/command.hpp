@@ -9,7 +9,7 @@ namespace redis {
 /**
  * @brief Models a command to the redis server.
  */
-class redis_command {
+class command {
 
   public:
     /**
@@ -17,7 +17,7 @@ class redis_command {
      * @param command A ' ' delimited of a command followed by the parameters of
      * the command.
      */
-    redis_command(std::string command);
+    command(std::string command);
 
     /**
      * @brief Creates a command from a list of strings that contain the command
@@ -25,7 +25,7 @@ class redis_command {
      * @param command A list whose first element is the command follwed by a
      * list of parameters.
      */
-    redis_command(std::vector<std::string> command);
+    command(std::vector<std::string> command);
 
     /**
      * @returns bool True if the command list is empty.
@@ -46,12 +46,12 @@ class redis_command {
     /**
      * @return bool true if the commands are equal, otherwise false.
      */
-    bool operator==(const redis_command& rhs) const;
+    bool operator==(const command& rhs) const;
 
     /**
      * @return bool false if the commands are equal, otherwise true.
      */
-    bool operator!=(const redis_command& rhs) const;
+    bool operator!=(const command& rhs) const;
 
   private:
     std::vector<std::string> commands_;

@@ -46,27 +46,29 @@ target_include_directories(${REDIS_REPLY_TEST} PRIVATE ${CMAKE_SOURCE_DIR})
 target_link_libraries(${REDIS_REPLY_TEST} ${TARGET_NAME} ${CONAN_LIBS})
 add_test(NAME ${REDIS_REPLY_TEST} COMMAND $<TARGET_FILE:${REDIS_REPLY_TEST}>)
 
-set(REDIS_CLIENT_TEST "redis_client_test")
-add_executable(${REDIS_CLIENT_TEST}
-        "redis_client_test.cpp"
-)
-target_include_directories(${REDIS_CLIENT_TEST} PRIVATE ${CMAKE_SOURCE_DIR})
-target_link_libraries(${REDIS_CLIENT_TEST} ${TARGET_NAME} ${CONAN_LIBS})
-add_test(NAME ${REDIS_CLIENT_TEST} COMMAND $<TARGET_FILE:${REDIS_CLIENT_TEST}>)
+if(${RUN_E2E_TESTS})
+        set(REDIS_CLIENT_TEST "redis_client_test")
+        add_executable(${REDIS_CLIENT_TEST}
+                "redis_client_test.cpp"
+        )
+        target_include_directories(${REDIS_CLIENT_TEST} PRIVATE ${CMAKE_SOURCE_DIR})
+        target_link_libraries(${REDIS_CLIENT_TEST} ${TARGET_NAME} ${CONAN_LIBS})
+        add_test(NAME ${REDIS_CLIENT_TEST} COMMAND $<TARGET_FILE:${REDIS_CLIENT_TEST}>)
 
-set(REDIS_SUB_CONNECTION_TEST "redis_sub_connection_test")
-add_executable(${REDIS_SUB_CONNECTION_TEST}
-        "redis_sub_connection_test.cpp"
-)
-target_include_directories(${REDIS_SUB_CONNECTION_TEST} PRIVATE ${CMAKE_SOURCE_DIR})
-target_link_libraries(${REDIS_SUB_CONNECTION_TEST} ${TARGET_NAME} ${CONAN_LIBS})
-add_test(NAME ${REDIS_SUB_CONNECTION_TEST} COMMAND $<TARGET_FILE:${REDIS_SUB_CONNECTION_TEST}>)
+        set(REDIS_SUB_CONNECTION_TEST "redis_sub_connection_test")
+        add_executable(${REDIS_SUB_CONNECTION_TEST}
+                "redis_sub_connection_test.cpp"
+        )
+        target_include_directories(${REDIS_SUB_CONNECTION_TEST} PRIVATE ${CMAKE_SOURCE_DIR})
+        target_link_libraries(${REDIS_SUB_CONNECTION_TEST} ${TARGET_NAME} ${CONAN_LIBS})
+        add_test(NAME ${REDIS_SUB_CONNECTION_TEST} COMMAND $<TARGET_FILE:${REDIS_SUB_CONNECTION_TEST}>)
 
-set(REDIS_SUB_TEST "redis_sub_test")
-add_executable(${REDIS_SUB_TEST}
-        "redis_sub_test.cpp"
-)
-target_include_directories(${REDIS_SUB_TEST} PRIVATE ${CMAKE_SOURCE_DIR})
-target_link_libraries(${REDIS_SUB_TEST} ${TARGET_NAME} ${CONAN_LIBS})
-add_test(NAME ${REDIS_SUB_TEST} COMMAND $<TARGET_FILE:${REDIS_SUB_TEST}>)
+        set(REDIS_SUB_TEST "redis_sub_test")
+        add_executable(${REDIS_SUB_TEST}
+                "redis_sub_test.cpp"
+        )
+        target_include_directories(${REDIS_SUB_TEST} PRIVATE ${CMAKE_SOURCE_DIR})
+        target_link_libraries(${REDIS_SUB_TEST} ${TARGET_NAME} ${CONAN_LIBS})
+        add_test(NAME ${REDIS_SUB_TEST} COMMAND $<TARGET_FILE:${REDIS_SUB_TEST}>)
 
+endif(${RUN_E2E_TESTS})

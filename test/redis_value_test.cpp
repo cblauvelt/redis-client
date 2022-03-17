@@ -1,5 +1,5 @@
-#include "redis_message.hpp"
-#include "redis_value.hpp"
+#include "redis/message.hpp"
+#include "redis/value.hpp"
 
 #include "gmock/gmock.h"
 #include "gtest/gtest.h"
@@ -26,7 +26,7 @@ TEST(redis_value, Null) {
 TEST(redis_value, string) {
     redis::redis_value value("foo");
     auto stringVal = value.as<string>();
-    auto errorVal = value.as<redis::redis_error>();
+    auto errorVal = value.as<redis::error>();
     auto int64Val = value.as<int64_t>();
     auto intVal = value.as<int>();
     auto floatVal = value.as<float>();
@@ -57,10 +57,10 @@ TEST(redis_value, string) {
 }
 
 TEST(redis_value, Error) {
-    redis::redis_value value(redis::redis_error(
+    redis::redis_value value(redis::error(
         "WRONGTYPE Operation against a key holding the wrong kind of value"));
     auto stringVal = value.as<string>();
-    auto errorVal = value.as<redis::redis_error>();
+    auto errorVal = value.as<redis::error>();
     auto int64Val = value.as<int64_t>();
     auto intVal = value.as<int>();
     auto floatVal = value.as<float>();
@@ -100,7 +100,7 @@ TEST(redis_value, Error) {
 TEST(redis_value, integer) {
     redis::redis_value value(42);
     auto stringVal = value.as<string>();
-    auto errorVal = value.as<redis::redis_error>();
+    auto errorVal = value.as<redis::error>();
     auto int64Val = value.as<int64_t>();
     auto intVal = value.as<int>();
     auto floatVal = value.as<float>();
@@ -130,7 +130,7 @@ TEST(redis_value, int64_t) {
     int64_t tempVal = -43;
     redis::redis_value value(tempVal);
     auto stringVal = value.as<string>();
-    auto errorVal = value.as<redis::redis_error>();
+    auto errorVal = value.as<redis::error>();
     auto int64Val = value.as<int64_t>();
     auto intVal = value.as<int>();
     auto floatVal = value.as<float>();
@@ -160,7 +160,7 @@ TEST(redis_value, Float_Double) {
     redis::bulk_string tempVal = redis::string_to_vector("2.5");
     redis::redis_value value(tempVal);
     auto stringVal = value.as<string>();
-    auto errorVal = value.as<redis::redis_error>();
+    auto errorVal = value.as<redis::error>();
     auto int64Val = value.as<int64_t>();
     auto intVal = value.as<int>();
     auto floatVal = value.as<float>();
@@ -200,7 +200,7 @@ TEST(redis_value, Negative_Float_Double) {
     redis::bulk_string tempVal = redis::string_to_vector("-2.5");
     redis::redis_value value(tempVal);
     auto stringVal = value.as<string>();
-    auto errorVal = value.as<redis::redis_error>();
+    auto errorVal = value.as<redis::error>();
     auto int64Val = value.as<int64_t>();
     auto intVal = value.as<int>();
     auto floatVal = value.as<float>();
@@ -240,7 +240,7 @@ TEST(redis_value, BulkString) {
     std::vector<uint8_t> charVal = {'a', 'b', 'c', 'd', 'e', 'f', 0, 'g'};
     redis::redis_value value(charVal);
     auto stringVal = value.as<string>();
-    auto errorVal = value.as<redis::redis_error>();
+    auto errorVal = value.as<redis::error>();
     auto int64Val = value.as<int64_t>();
     auto intVal = value.as<int>();
     auto floatVal = value.as<float>();
@@ -288,7 +288,7 @@ TEST(redis_value, EmptyBulkString) {
     std::vector<uint8_t> charVal;
     redis::redis_value value(charVal);
     auto stringVal = value.as<string>();
-    auto errorVal = value.as<redis::redis_error>();
+    auto errorVal = value.as<redis::error>();
     auto int64Val = value.as<int64_t>();
     auto intVal = value.as<int>();
     auto floatVal = value.as<float>();
@@ -325,7 +325,7 @@ TEST(redis_value, Array) {
             redis::redis_value(int64_t(4200)), redis::redis_value("string")};
     redis::redis_value value(redisArray);
     auto stringVal = value.as<string>();
-    auto errorVal = value.as<redis::redis_error>();
+    auto errorVal = value.as<redis::error>();
     auto int64Val = value.as<int64_t>();
     auto intVal = value.as<int>();
     auto floatVal = value.as<float>();
@@ -384,7 +384,7 @@ TEST(redis_value, Redis_Message) {
 TEST(redis_value, bool) {
     redis::redis_value value("OK");
     auto stringVal = value.as<string>();
-    auto errorVal = value.as<redis::redis_error>();
+    auto errorVal = value.as<redis::error>();
     auto int64Val = value.as<int64_t>();
     auto intVal = value.as<int>();
     auto floatVal = value.as<float>();

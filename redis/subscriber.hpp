@@ -9,12 +9,12 @@
 
 #include "errors.hpp"
 #include "helper_functions.hpp"
-#include "redis_command.hpp"
-#include "redis_defs.hpp"
-#include "redis_message.hpp"
-#include "redis_reply.hpp"
-#include "redis_subscriber_connection.hpp"
-#include "redis_value.hpp"
+#include "redis/command.hpp"
+#include "redis/message.hpp"
+#include "redis/reply.hpp"
+#include "redis/subscriber_connection.hpp"
+#include "redis/value.hpp"
+#include "types.hpp"
 
 namespace redis {
 
@@ -116,9 +116,9 @@ class redis_subscriber {
   private:
     /**
      * @brief Used to send the command to the server.
-     * @param command The redis_command to send to the server.
+     * @param command The command to send to the server.
      */
-    [[nodiscard]] awaitable<cpool::error> send(redis_command command);
+    [[nodiscard]] awaitable<cpool::error> send(command command);
 
     /**
      * @brief reads messages from the server.

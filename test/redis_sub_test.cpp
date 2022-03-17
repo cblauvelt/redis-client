@@ -2,11 +2,11 @@
 #include <string>
 #include <vector>
 
-#include "commands.hpp"
-#include "errors.hpp"
-#include "redis_client.hpp"
-#include "redis_error.hpp"
-#include "redis_subscriber.hpp"
+#include "redis/client.hpp"
+#include "redis/commands.hpp"
+#include "redis/error.hpp"
+#include "redis/errors.hpp"
+#include "redis/subscriber.hpp"
 
 #include "gmock/gmock.h"
 #include "gtest/gtest.h"
@@ -25,8 +25,9 @@ std::optional<std::string> get_env_var(std::string const& key) {
 
 void testForError(std::string cmd, const redis::redis_reply& reply) {
     EXPECT_FALSE(reply.error()) << cmd << reply.error().message();
-    if (reply.error() == redis_client_error_code::redis_error) {
-        EXPECT_EQ(reply.value().as<redis_error>().value().what(), std::string())
+    if (reply.error() == client_error_code::error) {
+        EXPECT_EQ(reply.value().as<redis::error>().value().what(),
+                  std::string())
             << cmd;
     }
 }
@@ -131,7 +132,7 @@ void logMessage(log_level target, log_level level, string_view message) {
     std::cout << fmt::format("{0}: {1}", levelString, message) << std::endl;
 }
 
-awaitable<void> publish_messages(redis_client& client, std::string channel,
+awaitable<void> publish_messages(client& client, std::string channel,
                                  int max_messages) {
     auto reply = co_await client.ping();
     testForString("PING", reply, "PONG");
@@ -148,7 +149,7 @@ awaitable<void> run_tests(asio::io_context& ctx) {
     auto exec = co_await cpool::net::this_coro::executor;
     auto host = get_env_var("REDIS_HOST").value_or(DEFAULT_REDIS_HOST);
 
-    redis_client client(exec, host, 6379);
+    client client(exec, host, 6379);
     redis_subscriber subscriber(exec, host, 6379);
     subscriber.set_logging_handler(std::bind(logMessage, log_level::trace,
                                              std::placeholders::_1,

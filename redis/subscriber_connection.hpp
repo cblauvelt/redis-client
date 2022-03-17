@@ -8,7 +8,7 @@
 #include <cpool/tcp_connection.hpp>
 #include <cpool/timer.hpp>
 
-#include "redis_defs.hpp"
+#include "redis/types.hpp"
 
 namespace redis {
 

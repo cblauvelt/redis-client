@@ -17,14 +17,15 @@ class RedisClientConan(ConanFile):
     license = "MIT"
     topics = ("redis", "asio")
     exports = ["LICENSE"]
-    exports_sources = ["CMakeLists.txt", "conan.cmake", "conanfile.py", "include/*", "src/*", "test/*"]
+    exports_sources = ["CMakeLists.txt", "conan.cmake",
+                       "conanfile.py", "redis/*", "test/*"]
     generators = "cmake"
     settings = "os", "arch", "compiler", "build_type"
-    requires = "cpool/0.9.5", "boost/1.78.0", "openssl/1.1.1m", "fmt/8.1.1"
+    requires = "cpool/cblauvelt_issue8_83aba2b8b4b4", "boost/1.78.0", "openssl/1.1.1m", "fmt/8.1.1"
     build_requires = "gtest/cci.20210126"
     options = {"cxx_standard": [20], "build_testing": [True, False]}
     default_options = {"cxx_standard": 20, "build_testing": True}
-    
+
     def config_options(self):
         if self.settings.os == "Windows":
             del self.options.fPIC
@@ -33,15 +34,19 @@ class RedisClientConan(ConanFile):
         if self.settings.os == "Windows" and \
            self.settings.compiler == "Visual Studio" and \
            Version(self.settings.compiler.version.value) < "16":
-            raise ConanInvalidConfiguration("redis-client does not support MSVC < 16")
+            raise ConanInvalidConfiguration(
+                "redis-client does not support MSVC < 16")
 
-    def sanitize_version(self, version):
+    def sanitize_tag(self, version):
         return re.sub(r'^v', '', version)
 
+    def sanitize_branch(self, branch):
+        return re.sub(r'/', '_', branch)
 
     def set_version(self):
         git = tools.Git(folder=self.recipe_folder)
-        self.version = self.sanitize_version(git.get_tag()) if git.get_tag() else "%s_%s" % (git.get_branch(), git.get_revision())
+        self.version = self.sanitize_tag(git.get_tag()) if git.get_tag(
+        ) else "%s_%s" % (self.sanitize_branch(git.get_branch()), git.get_revision()[:12])
 
     def build(self):
         cmake = CMake(self)
@@ -53,8 +58,8 @@ class RedisClientConan(ConanFile):
 
     def package(self):
         self.copy("LICENSE", dst="licenses")
-        self.copy("*.hpp", dst="include/redis-client", src="include")
+        self.copy("*.hpp", dst="include/redis-client", src="redis")
         self.copy("*.a", dst="lib", keep_path=False)
-        
+
     def package_info(self):
-        self.cpp_info.libs = ["redis_client"]
+        self.cpp_info.libs = ["redis-client"]

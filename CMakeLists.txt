@@ -13,7 +13,7 @@ set(TARGET_NAME ${PROJECT_NAME})
 
 # include source directories
 include_directories(
-    "${CMAKE_SOURCE_DIR}/include"
+    "${CMAKE_SOURCE_DIR}/"
 )
 
 if(${UNIX})
@@ -69,30 +69,33 @@ else()
 endif()
 
 set(INCLUDE_FILES
-    "include/redis_client.hpp"
-    "include/redis_client_config.hpp"
-    "include/redis_command.hpp"
-    "include/redis_value.hpp"
-    "include/redis_reply.hpp"
-    "include/errors.hpp"
-    "include/redis_error.hpp"
-    "include/redis_message.hpp"
-    "include/redis_subscriber.hpp"
-    "include/redis_subscriber_connection.hpp"
-    "include/redis_definitions.hpp"
+    "redis/client_config.hpp"
+    "redis/client.hpp"
+    "redis/command.hpp"
+    "redis/commands-json.hpp"
+    "redis/commands.hpp"
+    "redis/error.hpp"
+    "redis/errors.hpp"
+    "redis/helper_functions.hpp"
+    "redis/message.hpp"
+    "redis/reply.hpp"
+    "redis/subscriber_connection.hpp"
+    "redis/subscriber.hpp"
+    "redis/types.hpp"
+    "redis/value.hpp"
 )
 
 set(SOURCE_FILES
-    "src/commands.cpp"
-    "src/errors.cpp"
-    "src/helper_functions.cpp"
-    "src/redis_client.cpp"
-    "src/redis_command.cpp"
-    "src/redis_value.cpp"
-    "src/redis_reply.cpp"
-    "src/redis_error.cpp"
-    "src/redis_subscriber.cpp"
-    "src/redis_subscriber_connection.cpp"
+    "redis/client.cpp"
+    "redis/command.cpp"
+    "redis/commands.cpp"
+    "redis/error.cpp"
+    "redis/errors.cpp"
+    "redis/helper_functions.cpp"
+    "redis/reply.cpp"
+    "redis/subscriber_connection.cpp"
+    "redis/subscriber.cpp"
+    "redis/value.cpp"
 )
 
 add_library(${TARGET_NAME} STATIC ${SOURCE_FILES})
@@ -116,7 +119,9 @@ install(
 
 # create and configure the unit test target
 option(BuildTests "Build the unit tests" ON)
+option(RUN_E2E_TESTS "Run e2e tests" OFF)
 message("-- BuildTests is ${BuildTests}")
+message("-- RUN_E2E_TESTS is ${RUN_E2E_TESTS}")
 if(BuildTests)
 	enable_testing()
     add_subdirectory(test)

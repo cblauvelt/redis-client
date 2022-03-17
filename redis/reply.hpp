@@ -8,7 +8,7 @@
 #include <vector>
 
 #include "errors.hpp"
-#include "redis_value.hpp"
+#include "redis/value.hpp"
 
 namespace redis {
 

@@ -1,4 +1,4 @@
-#include "redis_subscriber_connection.hpp"
+#include "redis/subscriber_connection.hpp"
 
 #include <cpool/back_off.hpp>
 
@@ -57,7 +57,7 @@ redis_subscriber_connection::async_connect() {
     if (!connecting_.compare_exchange_strong(expected_connecting_status,
                                              true)) {
         co_await connection_->wait_for(client_connection_state::connected);
-        co_return cpool::no_error;
+        co_return cpool::error();
     }
 
     log_message(redis::log_level::trace, "Attempting first connect");
@@ -83,7 +83,7 @@ redis_subscriber_connection::async_connect() {
                     fmt::format("attempting connection to: {0}:{1}",
                                 connection_->host(), connection_->port()));
         auto error = co_await connection_->async_connect();
-        if (error.error_code() == net::error::operation_aborted) {
+        if (error.value() == (int)net::error::operation_aborted) {
             connecting_ = false;
             co_return error;
         }
@@ -98,7 +98,7 @@ redis_subscriber_connection::async_connect() {
                 fmt::format("connected to: {0}:{1}", connection_->host(),
                             connection_->port()));
     connecting_ = false;
-    co_return cpool::no_error;
+    co_return cpool::error();
 }
 
 void redis_subscriber_connection::log_message(log_level level,

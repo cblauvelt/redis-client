@@ -1,7 +1,7 @@
 #pragma once
 
-#include "redis_message.hpp"
-#include "redis_reply.hpp"
+#include "redis/message.hpp"
+#include "redis/reply.hpp"
 
 namespace redis {
 
