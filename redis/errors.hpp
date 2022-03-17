@@ -4,7 +4,7 @@
 
 namespace redis {
 
-enum class redis_error_code : uint8_t {
+enum class error_code : uint8_t {
     /// no_error No error has occurred
     no_error = 0,
     /// not_supported The requested action is not yet supported
@@ -14,11 +14,11 @@ enum class redis_error_code : uint8_t {
 
 };
 
-enum class redis_client_error_code : uint8_t {
+enum class client_error_code : uint8_t {
     /// no_error No error has occurred
     no_error = 0,
     /// RedisError An error has been returned by the Redis server.
-    redis_error,
+    error,
     /// disconnected The client was disconnected
     disconnected,
     /// write_error There was an error while writing the command to the server
@@ -30,11 +30,11 @@ enum class redis_client_error_code : uint8_t {
     response_command_mismatch
 };
 
-enum class redis_subscriber_error_code : uint8_t {
+enum class subscriber_error_code : uint8_t {
     /// no_error No error has occurred
     no_error = 0,
-    /// redis_error An error has been returned by the Redis server.
-    redis_error,
+    /// error An error has been returned by the Redis server.
+    error,
     /// disconnected The client was disconnected
     disconnected,
     /// write_error There was an error while writing the command to the server
@@ -58,20 +58,19 @@ enum class parse_error_code : uint8_t {
     malformed_message
 };
 
-std::error_code make_error_code(redis::redis_error_code);
-std::error_code make_error_code(redis::redis_client_error_code);
-std::error_code make_error_code(redis::redis_subscriber_error_code);
+std::error_code make_error_code(redis::error_code);
+std::error_code make_error_code(redis::client_error_code);
+std::error_code make_error_code(redis::subscriber_error_code);
 std::error_code make_error_code(redis::parse_error_code);
 
 } // namespace redis
 
 namespace std {
-// Tell the C++ STL metaprogramming that enum redis_error_code
+// Tell the C++ STL metaprogramming that enum error_code
 // is registered with the standard error code system
-template <> struct is_error_code_enum<redis::redis_error_code> : true_type {};
+template <> struct is_error_code_enum<redis::error_code> : true_type {};
+template <> struct is_error_code_enum<redis::client_error_code> : true_type {};
 template <>
-struct is_error_code_enum<redis::redis_client_error_code> : true_type {};
-template <>
-struct is_error_code_enum<redis::redis_subscriber_error_code> : true_type {};
+struct is_error_code_enum<redis::subscriber_error_code> : true_type {};
 template <> struct is_error_code_enum<redis::parse_error_code> : true_type {};
 } // namespace std

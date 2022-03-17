@@ -11,8 +11,8 @@
 #include <vector>
 
 #include "helper_functions.hpp"
-#include "redis_error.hpp"
-#include "redis_message.hpp"
+#include "redis/error.hpp"
+#include "redis/message.hpp"
 
 namespace redis {
 
@@ -62,7 +62,7 @@ class redis_value {
      * @brief Creates a redis_value of type error
      * @param val The error to hold within the redis_value
      */
-    redis_value(redis_error val);
+    redis_value(error val);
 
     /**
      * @brief Creates a redis_value that holds a signed 64-bit integer
@@ -124,7 +124,7 @@ class redis_value {
     redis_type type() const;
 
   private:
-    std::variant<std::nullptr_t, std::string, redis_error, int64_t, bulk_string,
+    std::variant<std::nullptr_t, std::string, error, int64_t, bulk_string,
                  redis_array>
         value_;
 
@@ -159,18 +159,16 @@ template <> inline std::optional<string> redis_value::as<>() const {
         return vector_to_string(std::get<bulk_string>(value_));
     }
 
-    if (type_ == redis_type::error &&
-        std::holds_alternative<redis_error>(value_)) {
-        return string(std::get<redis_error>(value_).what());
+    if (type_ == redis_type::error && std::holds_alternative<error>(value_)) {
+        return string(std::get<error>(value_).what());
     }
 
     return std::nullopt;
 }
 
-template <> inline std::optional<redis_error> redis_value::as<>() const {
-    if (type_ == redis_type::error &&
-        std::holds_alternative<redis_error>(value_)) {
-        return std::get<redis_error>(value_);
+template <> inline std::optional<error> redis_value::as<>() const {
+    if (type_ == redis_type::error && std::holds_alternative<error>(value_)) {
+        return std::get<error>(value_);
     }
 
     return std::nullopt;
@@ -332,8 +330,7 @@ template <> inline std::optional<bool> redis_value::as<>() const {
         return (std::get<string>(value_) == "OK");
     }
 
-    if (type_ == redis_type::error &&
-        std::holds_alternative<redis_error>(value_)) {
+    if (type_ == redis_type::error && std::holds_alternative<error>(value_)) {
         return false;
     }
 

@@ -5,10 +5,10 @@
 
 #include <fmt/format.h>
 
-#include "commands-json.hpp"
-#include "commands.hpp"
-#include "redis_client.hpp"
-#include "redis_command.hpp"
+#include "redis/client.hpp"
+#include "redis/command.hpp"
+#include "redis/commands-json.hpp"
+#include "redis/commands.hpp"
 
 #include "gmock/gmock.h"
 #include "gtest/gtest.h"
@@ -27,8 +27,9 @@ std::optional<std::string> get_env_var(std::string const& key) {
 
 void testForError(std::string cmd, const redis::redis_reply& reply) {
     EXPECT_FALSE(reply.error()) << cmd;
-    if (reply.error() == redis_client_error_code::redis_error) {
-        EXPECT_EQ(reply.value().as<redis_error>().value().what(), std::string())
+    if (reply.error() == client_error_code::error) {
+        EXPECT_EQ(reply.value().as<redis::error>().value().what(),
+                  std::string())
             << cmd;
     }
 }
@@ -100,8 +101,7 @@ void logMessage(log_level level, string_view message) {
     cout << message << endl;
 }
 
-awaitable<void> test_basic(redis_client& client, int c,
-                           std::atomic<int>& barrier) {
+awaitable<void> test_basic(client& client, int c, std::atomic<int>& barrier) {
     auto exec = co_await cpool::net::this_coro::executor;
     string key = std::string("foo") + std::to_string(c);
     redis::redis_reply reply;
@@ -136,7 +136,7 @@ awaitable<void> run_tests(asio::io_context& ctx) {
     auto host = get_env_var("REDIS_HOST").value_or(DEFAULT_REDIS_HOST);
 
     logMessage(redis::log_level::info, host);
-    redis_client client(exec, host, 6379);
+    client client(exec, host, 6379);
     client.set_logging_handler(
         std::bind(logMessage, std::placeholders::_1, std::placeholders::_2));
 
@@ -168,14 +168,13 @@ awaitable<void> run_password_tests(asio::io_context& ctx) {
     int port = std::stoi(portString);
     auto password = get_env_var("REDIS_PASSWORD").value_or("");
     auto config =
-        redis_client_config{}.set_host(host).set_port(port).set_password(
-            password);
+        client_config{}.set_host(host).set_port(port).set_password(password);
 
     logMessage(redis::log_level::info,
                fmt::format("Logging into {}:{} with password {}", config.host,
                            config.port, config.password));
 
-    redis_client client(exec, config);
+    client client(exec, config);
     client.set_logging_handler(
         std::bind(logMessage, std::placeholders::_1, std::placeholders::_2));
 
@@ -198,8 +197,7 @@ awaitable<void> run_password_tests(asio::io_context& ctx) {
     co_return;
 }
 
-awaitable<void> test_json(redis_client& client, int c,
-                          std::atomic<int>& barrier) {
+awaitable<void> test_json(client& client, int c, std::atomic<int>& barrier) {
     auto exec = co_await cpool::net::this_coro::executor;
     string key1 = std::string("object") + std::to_string(c);
     string key2 = std::string("amoreinterestingexample") + std::to_string(c);
@@ -321,7 +319,7 @@ awaitable<void> run_json_tests(asio::io_context& ctx) {
     std::atomic<int> barrier;
     auto exec = co_await cpool::net::this_coro::executor;
     auto host = get_env_var("REDIS_HOST").value_or(DEFAULT_REDIS_HOST);
-    redis_client client(exec, host, 6379);
+    client client(exec, host, 6379);
     client.set_logging_handler(
         std::bind(logMessage, std::placeholders::_1, std::placeholders::_2));
 

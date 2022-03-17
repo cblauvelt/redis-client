@@ -2,9 +2,9 @@
 #include <string>
 #include <vector>
 
-#include "errors.hpp"
-#include "redis_error.hpp"
-#include "redis_subscriber_connection.hpp"
+#include "redis/error.hpp"
+#include "redis/errors.hpp"
+#include "redis/subscriber_connection.hpp"
 
 #include "gmock/gmock.h"
 #include "gtest/gtest.h"

@@ -1,12 +1,7 @@
 
-#include "redis_reply.hpp"
-
-#include <iostream>
+#include "redis/reply.hpp"
 
 namespace redis {
-
-using std::cout;
-using std::endl;
 
 redis_reply::redis_reply(const std::vector<uint8_t>& buffer) {
     std::tie(value_, error_, std::ignore) =
@@ -96,8 +91,8 @@ redis_reply::parse_error(std::vector<uint8_t>::const_iterator it,
     // consume the '\r\n'
     it += 2;
 
-    return parse_response(redis_value(redis_error(value)),
-                          redis_client_error_code::redis_error, it);
+    return parse_response(redis_value(redis::error(value)),
+                          client_error_code::error, it);
 }
 
 parse_response

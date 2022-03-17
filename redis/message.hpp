@@ -3,8 +3,6 @@
 #include <string>
 #include <vector>
 
-// #include "redis_value.hpp"
-
 namespace redis {
 
 using std::string;

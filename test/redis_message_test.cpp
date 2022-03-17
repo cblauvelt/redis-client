@@ -1,5 +1,5 @@
-#include "redis_message.hpp"
-#include "redis_value.hpp"
+#include "redis/message.hpp"
+#include "redis/value.hpp"
 
 #include "gmock/gmock.h"
 #include "gtest/gtest.h"

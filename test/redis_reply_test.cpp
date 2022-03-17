@@ -1,5 +1,5 @@
-#include "errors.hpp"
-#include "redis_reply.hpp"
+#include "redis/errors.hpp"
+#include "redis/reply.hpp"
 
 #include "gmock/gmock.h"
 #include "gtest/gtest.h"
@@ -29,9 +29,9 @@ TEST(RedisReply, SimpleString) {
 }
 
 TEST(RedisReply, ErrorCode) {
-    redis::redis_reply reply(redis::redis_client_error_code::write_error);
+    redis::redis_reply reply(redis::client_error_code::write_error);
 
-    EXPECT_EQ(reply.error(), redis::redis_client_error_code::write_error);
+    EXPECT_EQ(reply.error(), redis::client_error_code::write_error);
     EXPECT_EQ(reply.error().message(),
               "There was an error while writing the command to the server");
     EXPECT_EQ(reply.value().type(), redis::redis_type::nil);
@@ -47,8 +47,8 @@ TEST(RedisReply, Error) {
     auto it = reply2.load_data(inputBuffer.begin(), inputBuffer.end());
 
     // Test first constructor
-    EXPECT_EQ(reply1.error(), redis::redis_client_error_code::redis_error);
-    redis::redis_error result1 = reply1.value();
+    EXPECT_EQ(reply1.error(), redis::client_error_code::error);
+    redis::error result1 = reply1.value();
     string testString = result1.what();
     EXPECT_EQ(testString, "WRONGTYPE Operation against a key holding the "
                           "wrong kind of value");

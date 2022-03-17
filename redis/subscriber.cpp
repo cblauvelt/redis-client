@@ -1,4 +1,4 @@
-#include "redis_subscriber.hpp"
+#include "redis/subscriber.hpp"
 
 namespace redis {
 
@@ -22,31 +22,31 @@ redis_subscriber::redis_subscriber(net::any_io_executor exec, string host,
 
 awaitable<cpool::error> redis_subscriber::ping() {
     if (!running()) {
-        co_return std::error_code(redis_client_error_code::disconnected);
+        co_return std::error_code(client_error_code::disconnected);
     }
-    auto error = co_await send(redis_command("PING"));
+    auto error = co_await send(command("PING"));
     co_return error;
 }
 
 awaitable<cpool::error> redis_subscriber::subscribe(string channel) {
     log_message(log_level::debug, fmt::format("Subscribing to {0}", channel));
-    return send(redis_command(std::vector<string>{"SUBSCRIBE", channel}));
+    return send(command(std::vector<string>{"SUBSCRIBE", channel}));
 }
 
 awaitable<cpool::error> redis_subscriber::unsubscribe(string channel) {
     log_message(log_level::debug, fmt::format("Unsubscribing to {0}", channel));
-    return send(redis_command(std::vector<string>{"UNSUBSCRIBE", channel}));
+    return send(command(std::vector<string>{"UNSUBSCRIBE", channel}));
 }
 
 awaitable<cpool::error> redis_subscriber::psubscribe(string pattern) {
     log_message(log_level::debug, fmt::format("Psubscribing to {0}", pattern));
-    return send(redis_command(std::vector<string>{"PSUBSCRIBE", pattern}));
+    return send(command(std::vector<string>{"PSUBSCRIBE", pattern}));
 }
 
 awaitable<cpool::error> redis_subscriber::punsubscribe(string pattern) {
     log_message(log_level::debug,
                 fmt::format("Punsubscribing to {0}", pattern));
-    return send(redis_command(std::vector<string>{"PUNSUBSCRIBE", pattern}));
+    return send(command(std::vector<string>{"PUNSUBSCRIBE", pattern}));
 }
 
 void redis_subscriber::start() {
@@ -71,11 +71,11 @@ awaitable<void> redis_subscriber::stop() {
 
 awaitable<cpool::error> redis_subscriber::reset() {
     log_message(log_level::debug, fmt::format("Reseting subscriptions"));
-    return send(redis_command("RESET"));
+    return send(command("RESET"));
 }
 
 // Send Commands
-awaitable<cpool::error> redis_subscriber::send(redis_command command) {
+awaitable<cpool::error> redis_subscriber::send(command command) {
     log_message(log_level::trace, "getting connection for send");
     auto conn = co_await connection_.get();
     log_message(log_level::trace, "got connection for send");
@@ -86,10 +86,10 @@ awaitable<cpool::error> redis_subscriber::send(redis_command command) {
         co_return write_error;
     }
     if (bytes_written != buffer.size()) {
-        co_return redis_client_error_code::write_error;
+        co_return client_error_code::write_error;
     }
 
-    co_return cpool::no_error;
+    co_return cpool::error();
 }
 
 awaitable<void> redis_subscriber::read_messages() {
@@ -104,14 +104,14 @@ awaitable<void> redis_subscriber::read_messages() {
         log_message(log_level::trace, "reading");
         auto [read_error, bytes_read] =
             co_await conn->async_read_some(asio::buffer(read_buffer));
-        if (read_error.error_code() == (int)net::error::operation_aborted) {
+        if (read_error.value() == (int)net::error::operation_aborted) {
             log_message(log_level::trace, "cancelled, wrapping up");
             break;
         }
         if (read_error || bytes_read == 0) {
             log_message(
                 log_level::error,
-                std::error_code(redis_client_error_code::read_error).message());
+                std::error_code(client_error_code::read_error).message());
             continue;
         }
 

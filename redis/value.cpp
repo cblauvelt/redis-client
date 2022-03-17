@@ -1,12 +1,8 @@
-#include "redis_value.hpp"
+#include "redis/value.hpp"
 
 #include <algorithm>
-#include <iostream>
 
 namespace redis {
-
-using std::cout;
-using std::endl;
 
 redis_value::redis_value()
     : value_()
@@ -16,7 +12,7 @@ redis_value::redis_value(string val)
     : value_(val)
     , type_(redis_type::simple_string) {}
 
-redis_value::redis_value(redis_error val)
+redis_value::redis_value(error val)
     : value_(std::move(val))
     , type_(redis_type::error) {}
 
@@ -49,9 +45,8 @@ bool redis_value::operator==(const redis_value& rhs) const {
         return (std::get<std::string>(value_) ==
                 std::get<std::string>(rhs.value_));
 
-    case 2: // redis_error
-        return (std::get<redis_error>(value_) ==
-                std::get<redis_error>(rhs.value_));
+    case 2: // error
+        return (std::get<error>(value_) == std::get<error>(rhs.value_));
 
     case 3: // int64_t
         return (std::get<int64_t>(value_) == std::get<int64_t>(rhs.value_));

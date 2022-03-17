@@ -1,5 +1,5 @@
 
-#include "helper_functions.hpp"
+#include "redis/helper_functions.hpp"
 
 #include "gmock/gmock.h"
 #include "gtest/gtest.h"
