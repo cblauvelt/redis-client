@@ -21,7 +21,7 @@ class RedisClientConan(ConanFile):
                        "conanfile.py", "redis/*", "test/*"]
     generators = "cmake"
     settings = "os", "arch", "compiler", "build_type"
-    requires = "cpool/cblauvelt_issue8_83aba2b8b4b4", "boost/1.78.0", "openssl/1.1.1m", "fmt/8.1.1"
+    requires = "cpool/main_ff73ac7e61ab", "boost/1.78.0", "openssl/1.1.1m", "fmt/8.1.1"
     build_requires = "gtest/cci.20210126"
     options = {"cxx_standard": [20], "build_testing": [True, False]}
     default_options = {"cxx_standard": 20, "build_testing": True}
