@@ -1,4 +1,4 @@
-#include "errors.hpp"
+#include "redis/errors.hpp"
 
 namespace redis {
 

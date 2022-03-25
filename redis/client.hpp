@@ -14,13 +14,13 @@
 #include <cpool/connection_pool.hpp>
 #include <cpool/tcp_connection.hpp>
 
-#include "helper_functions.hpp"
 #include "redis/client_config.hpp"
 #include "redis/command.hpp"
+#include "redis/helper_functions.hpp"
 #include "redis/reply.hpp"
 #include "redis/subscriber.hpp"
+#include "redis/types.hpp"
 #include "redis/value.hpp"
-#include "types.hpp"
 
 namespace redis {
 

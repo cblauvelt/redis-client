@@ -1,7 +1,7 @@
 #pragma once
 
 #include "redis/command.hpp"
-#include "types.hpp"
+#include "redis/types.hpp"
 
 #include <string>
 

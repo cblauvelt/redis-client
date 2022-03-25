@@ -10,8 +10,8 @@
 #include <variant>
 #include <vector>
 
-#include "helper_functions.hpp"
 #include "redis/error.hpp"
+#include "redis/helper_functions.hpp"
 #include "redis/message.hpp"
 
 namespace redis {

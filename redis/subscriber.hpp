@@ -7,14 +7,14 @@
 #include <cpool/condition_variable.hpp>
 #include <cpool/tcp_connection.hpp>
 
-#include "errors.hpp"
-#include "helper_functions.hpp"
 #include "redis/command.hpp"
+#include "redis/errors.hpp"
+#include "redis/helper_functions.hpp"
 #include "redis/message.hpp"
 #include "redis/reply.hpp"
 #include "redis/subscriber_connection.hpp"
+#include "redis/types.hpp"
 #include "redis/value.hpp"
-#include "types.hpp"
 
 namespace redis {
 

@@ -7,7 +7,7 @@
 #include <tuple>
 #include <vector>
 
-#include "errors.hpp"
+#include "redis/errors.hpp"
 #include "redis/value.hpp"
 
 namespace redis {
