@@ -57,4 +57,7 @@ class command {
     std::vector<std::string> commands_;
 };
 
+/// Used for pipelining
+using commands = std::vector<redis::command>;
+
 } // namespace redis

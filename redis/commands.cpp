@@ -22,6 +22,29 @@ command exists(string key) {
     return command(std::vector<std::string>{"EXISTS", key});
 }
 
+command incr(string key) {
+    return command(std::vector<std::string>{"INCR", key});
+}
+
+command incrby(string key, int64_t num) {
+    return command(
+        std::vector<std::string>{"INCRBY", key, std::to_string(num)});
+}
+
+command incrbyfloat(string key, double num) {
+    return command(
+        std::vector<std::string>{"INCRBYFLOAT", key, std::to_string(num)});
+}
+
+command decr(string key) {
+    return command(std::vector<std::string>{"DECR", key});
+}
+
+command decrby(string key, int64_t num) {
+    return command(
+        std::vector<std::string>{"DECR BY", key, std::to_string(num)});
+}
+
 command publish(string channel, string message) {
     return command(std::vector<std::string>{"PUBLISH", channel, message});
 }

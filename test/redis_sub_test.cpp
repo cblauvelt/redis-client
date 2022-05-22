@@ -23,7 +23,7 @@ std::optional<std::string> get_env_var(std::string const& key) {
     return (val == NULL) ? std::nullopt : std::optional(std::string(val));
 }
 
-void testForError(std::string cmd, const redis::redis_reply& reply) {
+void testForError(std::string cmd, const redis::reply& reply) {
     EXPECT_FALSE(reply.error()) << cmd << reply.error().message();
     if (reply.error() == client_error_code::error) {
         EXPECT_EQ(reply.value().as<redis::error>().value().what(),
@@ -32,7 +32,7 @@ void testForError(std::string cmd, const redis::redis_reply& reply) {
     }
 }
 
-void testForString(std::string cmd, redis::redis_reply reply, string expected) {
+void testForString(std::string cmd, redis::reply reply, string expected) {
     testForError(cmd, reply);
 
     auto optString = reply.value().as<string>();
@@ -40,7 +40,7 @@ void testForString(std::string cmd, redis::redis_reply reply, string expected) {
     EXPECT_EQ(optString.value(), expected);
 }
 
-void testForInt(std::string cmd, redis::redis_reply reply, int expected) {
+void testForInt(std::string cmd, redis::reply reply, int expected) {
     testForError(cmd, reply);
 
     redis_value value = reply.value();
@@ -49,7 +49,7 @@ void testForInt(std::string cmd, redis::redis_reply reply, int expected) {
     EXPECT_EQ(optInt.value(), expected);
 }
 
-void testForFloat(std::string cmd, redis::redis_reply reply, float expected) {
+void testForFloat(std::string cmd, redis::reply reply, float expected) {
     testForError(cmd, reply);
 
     redis_value value = reply.value();
@@ -59,7 +59,7 @@ void testForFloat(std::string cmd, redis::redis_reply reply, float expected) {
     EXPECT_FLOAT_EQ(optFloat.value(), expected);
 }
 
-void testForDouble(std::string cmd, redis::redis_reply reply, double expected) {
+void testForDouble(std::string cmd, redis::reply reply, double expected) {
     testForError(cmd, reply);
 
     redis_value value = reply.value();
@@ -69,8 +69,7 @@ void testForDouble(std::string cmd, redis::redis_reply reply, double expected) {
     EXPECT_DOUBLE_EQ(optDouble.value(), expected);
 }
 
-void testForArray(std::string cmd, redis::redis_reply reply,
-                  redis_array expected) {
+void testForArray(std::string cmd, redis::reply reply, redis_array expected) {
     testForError(cmd, reply);
 
     redis_value value = reply.value();
@@ -85,7 +84,7 @@ void testForArray(std::string cmd, redis::redis_reply reply,
     }
 }
 
-void testForSuccess(std::string cmd, redis::redis_reply reply) {
+void testForSuccess(std::string cmd, redis::reply reply) {
     testForError(cmd, reply);
 
     redis_value value = reply.value();
@@ -93,8 +92,7 @@ void testForSuccess(std::string cmd, redis::redis_reply reply) {
     EXPECT_TRUE(value.as<bool>().value_or(false)) << cmd;
 }
 
-void testForType(std::string cmd, redis::redis_reply reply,
-                 redis::redis_type type) {
+void testForType(std::string cmd, redis::reply reply, redis::redis_type type) {
     testForError(cmd, reply);
 
     EXPECT_EQ(reply.value().type(), type);

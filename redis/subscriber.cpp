@@ -132,7 +132,7 @@ redis_subscriber::parse_buffer(buffer_t::const_iterator begin,
                                buffer_t::const_iterator end) {
     auto it = begin;
     while (it != end) {
-        redis_reply reply;
+        reply reply;
         it = reply.load_data(it, end);
 
         cpool::error_code ec;
@@ -147,13 +147,13 @@ redis_subscriber::parse_buffer(buffer_t::const_iterator begin,
     co_return cpool::error_code();
 }
 
-awaitable<redis_reply> redis_subscriber::read() {
+awaitable<reply> redis_subscriber::read() {
     cpool::error_code ec;
     auto tok = asio::redirect_error(asio::use_awaitable, ec);
 
     auto reply = co_await message_queue_.async_receive(tok);
     if (ec) {
-        co_return redis_reply(ec);
+        co_return redis::reply(ec);
     }
 
     co_return reply;

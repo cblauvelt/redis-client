@@ -19,28 +19,28 @@ using parse_response = std::tuple<redis_value, std::error_code,
                                   std::vector<std::uint8_t>::const_iterator>;
 
 /**
- * @brief redis_reply models a reply from the Redis Server
+ * @brief reply models a reply from the Redis Server
  */
-class redis_reply {
+class reply {
 
   public:
     /**
      * @brief Creates an empty reply.
      */
-    redis_reply() = default;
+    reply() = default;
 
     /**
      * @brief Creates a reply from the pass buffer. Assumes that the entire
      * buffer will be consumed.
      * @param buffer The buffer that represents the reply.
      */
-    redis_reply(const std::vector<std::uint8_t>& buffer);
+    reply(const std::vector<std::uint8_t>& buffer);
 
     /**
      * @brief Creates a reply with an empty value and an error.
      * @param error An error code that relates to the error.
      */
-    redis_reply(const std::error_code& error);
+    reply(const std::error_code& error);
 
     /**
      * @brief Creates a reply from a buffer that begins with "it" and ends with
@@ -125,5 +125,8 @@ class redis_reply {
     redis_value value_;
     std::error_code error_;
 };
+
+/// Used for pipelining
+using replies = std::vector<redis::reply>;
 
 } // namespace redis
