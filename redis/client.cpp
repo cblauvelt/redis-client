@@ -2,75 +2,41 @@
 
 #include <chrono>
 
+#include <absl/cleanup/cleanup.h>
+
 namespace redis {
 
 client::client(cpool::net::any_io_executor exec, client_config config)
     : exec_(std::move(exec))
     , config_(config)
     , con_pool_(nullptr)
-    , on_log_() {
-
-    auto conn_creator = [&]() -> std::unique_ptr<cpool::tcp_connection> {
-        auto conn = std::make_unique<cpool::tcp_connection>(exec_, config_.host,
-                                                            config_.port);
-        if (!config_.password.empty()) {
-            if (config_.username.empty()) {
-                config_.username = "default";
-            }
-
-            // login when a connection is created
-            conn->set_state_change_handler(std::bind(&client::auth_client, this,
-                                                     std::placeholders::_1,
-                                                     std::placeholders::_2));
-        }
-
-        return conn;
-    };
+    , on_log_(nullptr) {
 
     con_pool_ = std::make_unique<cpool::connection_pool<cpool::tcp_connection>>(
-        exec_, conn_creator, config_.max_connections);
+        exec_, std::bind(&client::connection_ctor, this),
+        config_.max_connections);
 }
 
 client::client(cpool::net::any_io_executor exec, string host, uint16_t port)
     : exec_(std::move(exec))
     , config_()
-    , con_pool_()
-    , on_log_() {
+    , con_pool_(nullptr)
+    , on_log_(nullptr) {
 
     config_.host = host;
     config_.port = port;
 
-    auto conn_creator = [&]() -> std::unique_ptr<cpool::tcp_connection> {
-        return std::make_unique<cpool::tcp_connection>(exec_, config_.host,
-                                                       config_.port);
-    };
-
     con_pool_ = std::make_unique<cpool::connection_pool<cpool::tcp_connection>>(
-        exec_, conn_creator, config_.max_connections);
+        exec_, std::bind(&client::connection_ctor, this),
+        config_.max_connections);
 }
 
 void client::set_config(client_config config) {
     config_ = config;
 
-    auto conn_creator = [&]() -> std::unique_ptr<cpool::tcp_connection> {
-        auto conn = std::make_unique<cpool::tcp_connection>(exec_, config_.host,
-                                                            config_.port);
-        if (!config_.password.empty()) {
-            if (config_.username.empty()) {
-                config_.username = "default";
-            }
-
-            // login when a connection is created
-            conn->set_state_change_handler(std::bind(&client::auth_client, this,
-                                                     std::placeholders::_1,
-                                                     std::placeholders::_2));
-        }
-
-        return conn;
-    };
-
     con_pool_ = std::make_unique<cpool::connection_pool<cpool::tcp_connection>>(
-        exec_, conn_creator, config_.max_connections);
+        exec_, std::bind(&client::connection_ctor, this),
+        config_.max_connections);
 }
 
 client_config client::config() const { return config_; }
@@ -79,11 +45,23 @@ awaitable<redis_reply> client::ping() { return send(command("PING")); }
 
 // Send Commands
 awaitable<redis_reply> client::send(command command) {
+    log_message(redis::log_level::trace,
+                fmt::format("getting connection - connections {} - idle {}",
+                            con_pool_->size(), con_pool_->size_idle()));
     auto connection = co_await con_pool_->get_connection();
+    if (connection == nullptr) {
+        co_return redis_reply(redis::client_error_code::client_stopped);
+    }
+
+    auto defer_release = absl::Cleanup([&]() {
+        if (connection != nullptr) {
+            connection->expires_never();
+
+            con_pool_->release_connection(connection);
+        }
+    });
 
     auto reply = co_await send(connection, command);
-
-    con_pool_->release_connection(connection);
 
     co_return reply;
 }
@@ -109,6 +87,62 @@ awaitable<redis_reply> client::send(cpool::tcp_connection* connection,
     co_return reply;
 }
 
+std::unique_ptr<cpool::tcp_connection> client::connection_ctor() {
+
+    auto conn = std::make_unique<cpool::tcp_connection>(exec_, config_.host,
+                                                        config_.port);
+    if (!config_.password.empty()) {
+        if (config_.username.empty()) {
+            config_.username = "default";
+        }
+
+        // login when a connection is created
+        conn->set_state_change_handler(std::bind(&client::auth_client, this,
+                                                 std::placeholders::_1,
+                                                 std::placeholders::_2));
+    }
+
+    return conn;
+}
+
+[[nodiscard]] awaitable<cpool::error>
+client::on_connection_state_change(cpool::tcp_connection* conn,
+                                   const cpool::client_connection_state state) {
+    switch (state) {
+    case cpool::client_connection_state::disconnected:
+        log_message(log_level::info, fmt::format("disconnected from {0}:{1}",
+                                                 conn->host(), conn->port()));
+        break;
+
+    case cpool::client_connection_state::resolving:
+        log_message(log_level::info,
+                    fmt::format("resolving {0}", conn->host()));
+        break;
+
+    case cpool::client_connection_state::connecting:
+        log_message(log_level::info, fmt::format("connecting to {0}:{1}",
+                                                 conn->host(), conn->port()));
+        break;
+
+    case cpool::client_connection_state::connected:
+        log_message(log_level::info, fmt::format("connected to {0}:{1}",
+                                                 conn->host(), conn->port()));
+        break;
+
+    case cpool::client_connection_state::disconnecting:
+        log_message(log_level::info, fmt::format("disconnecting from {0}:{1}",
+                                                 conn->host(), conn->port()));
+        break;
+
+    default:
+        log_message(
+            log_level::warn,
+            fmt::format("unknown client_connection_state: {0}", (int)state));
+    }
+
+    co_return cpool::error();
+}
+
 awaitable<cpool::error>
 client::auth_client(cpool::tcp_connection* conn,
                     const cpool::client_connection_state state) {
@@ -125,6 +159,14 @@ client::auth_client(cpool::tcp_connection* conn,
             this->log_message(redis::log_level::error, reply.error().message());
         }
         co_return reply.error();
+    }
+
+    auto error = co_await on_connection_state_change(conn, state);
+    if (error) {
+        log_message(
+            log_level::error,
+            fmt::format("error while executing on_state_change_handler: {}",
+                        error.message()));
     }
 
     co_return cpool::error();

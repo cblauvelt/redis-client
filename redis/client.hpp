@@ -106,6 +106,12 @@ class client : public enable_shared_from_this<client> {
     [[nodiscard]] awaitable<redis_reply> send(cpool::tcp_connection* connection,
                                               command command);
 
+    std::unique_ptr<cpool::tcp_connection> connection_ctor();
+
+    [[nodiscard]] awaitable<cpool::error>
+    on_connection_state_change(cpool::tcp_connection* conn,
+                               const cpool::client_connection_state state);
+
     [[nodiscard]] awaitable<cpool::error>
     auth_client(cpool::tcp_connection* conn,
                 const cpool::client_connection_state state);

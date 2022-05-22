@@ -129,7 +129,8 @@ void logMessage(log_level target, log_level level, string_view message) {
     default:
         break;
     }
-    std::cout << fmt::format("{0}: {1}", levelString, message) << std::endl;
+    std::cout << fmt::format("[Redis] [{0}] {1}", levelString, message)
+              << std::endl;
 }
 
 awaitable<void> publish_messages(client& client, std::string channel,
@@ -150,6 +151,9 @@ awaitable<void> run_tests(asio::io_context& ctx) {
     auto host = get_env_var("REDIS_HOST").value_or(DEFAULT_REDIS_HOST);
 
     client client(exec, host, 6379);
+    client.set_logging_handler(std::bind(logMessage, log_level::trace,
+                                         std::placeholders::_1,
+                                         std::placeholders::_2));
     redis_subscriber subscriber(exec, host, 6379);
     subscriber.set_logging_handler(std::bind(logMessage, log_level::trace,
                                              std::placeholders::_1,

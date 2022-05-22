@@ -21,10 +21,10 @@ class RedisClientConan(ConanFile):
                        "conanfile.py", "redis/*", "test/*"]
     generators = "cmake"
     settings = "os", "arch", "compiler", "build_type"
-    requires = "cpool/main_ff73ac7e61ab", "boost/1.78.0", "openssl/1.1.1m", "fmt/8.1.1"
+    requires = "cpool/main_6c87e8e612ea", "boost/1.78.0", "openssl/1.1.1m", "fmt/8.1.1"
     build_requires = "gtest/cci.20210126"
-    options = {"cxx_standard": [20], "build_testing": [True, False]}
-    default_options = {"cxx_standard": 20, "build_testing": True}
+    options = {"cxx_standard": [20], "build_testing": [True, False], "trace_logging": [True, False]}
+    default_options = {"cxx_standard": 20, "build_testing": True, "trace_logging": False}
 
     def config_options(self):
         if self.settings.os == "Windows":
@@ -41,7 +41,7 @@ class RedisClientConan(ConanFile):
         return re.sub(r'^v', '', version)
 
     def sanitize_branch(self, branch):
-        return re.sub(r'/', '_', branch)
+        return re.sub(r'/', '_', branch)[:12]
 
     def set_version(self):
         git = tools.Git(folder=self.recipe_folder)
@@ -52,14 +52,15 @@ class RedisClientConan(ConanFile):
         cmake = CMake(self)
         cmake.definitions["CMAKE_CXX_STANDARD"] = self.options.cxx_standard
         cmake.definitions["BUILD_TESTING"] = self.options.build_testing
+        cmake.definitions["CPOOL_TRACE_LOGGING"] = self.options.trace_logging
         cmake.configure()
         cmake.build()
         cmake.test()
 
     def package(self):
         self.copy("LICENSE", dst="licenses")
-        self.copy("*.hpp", dst="include/redis-client", src="redis")
+        self.copy("*.hpp", dst="include/redis", src="redis")
         self.copy("*.a", dst="lib", keep_path=False)
 
     def package_info(self):
-        self.cpp_info.libs = ["redis-client"]
+        self.cpp_info.libs = ["redis_client"]

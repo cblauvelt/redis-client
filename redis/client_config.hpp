@@ -22,10 +22,6 @@ struct client_config {
     /// max_connections The maximum number of connections in the connection pool
     unsigned int max_connections;
 
-    /// rety_failed_commands When set to true, a command that fails due to a
-    /// disconnect from the server will be attempted again
-    bool rety_failed_commands;
-
     /// username Used for authentication with the redis server. If password is
     /// defined and username is blank, it is set to "default".
     std::string username;
@@ -37,7 +33,9 @@ struct client_config {
     client_config()
         : host("127.0.0.1")
         , port(6379)
-        , max_connections(8) {}
+        , max_connections(8)
+        , username()
+        , password() {}
 
     /**
      * @brief Sets the host name of the server.
@@ -63,6 +61,17 @@ struct client_config {
     }
 
     /**
+     * @brief Sets the maximum connections in the connection pool.
+     * @param num_connections The max number of connections.
+     * @returns The configuration object so subsequent commands to set methods
+     * can be chained.
+     */
+    client_config set_max_connections(unsigned int num_connections) {
+        this->max_connections = num_connections;
+        return *this;
+    }
+
+    /**
      * @brief Sets the username of the server.
      * @param username The username to authenticate with the redis server.
      * @returns The configuration object so subsequent commands to set methods
@@ -81,17 +90,6 @@ struct client_config {
      */
     client_config set_password(std::string password) {
         this->password = password;
-        return *this;
-    }
-
-    /**
-     * @brief Sets the maximum connections in the connection pool.
-     * @param num_connections The max number of connections.
-     * @returns The configuration object so subsequent commands to set methods
-     * can be chained.
-     */
-    client_config set_max_connections(unsigned int num_connections) {
-        this->max_connections = num_connections;
         return *this;
     }
 };

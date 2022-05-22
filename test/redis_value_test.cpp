@@ -98,7 +98,7 @@ TEST(redis_value, Error) {
 }
 
 TEST(redis_value, integer) {
-    redis::redis_value value(42);
+    redis::redis_value value(1042);
     auto stringVal = value.as<string>();
     auto errorVal = value.as<redis::error>();
     auto int64Val = value.as<int64_t>();
@@ -122,12 +122,12 @@ TEST(redis_value, integer) {
 
     // int specific tests
     int testValue = value;
-    EXPECT_EQ(intVal.value(), 42);
-    EXPECT_EQ(testValue, 42);
+    EXPECT_EQ(intVal.value(), 1042);
+    EXPECT_EQ(testValue, 1042);
 }
 
 TEST(redis_value, int64_t) {
-    int64_t tempVal = -43;
+    int64_t tempVal = -1043;
     redis::redis_value value(tempVal);
     auto stringVal = value.as<string>();
     auto errorVal = value.as<redis::error>();
@@ -152,8 +152,8 @@ TEST(redis_value, int64_t) {
 
     // int64 specific tests
     int testValue = value;
-    EXPECT_EQ(intVal.value(), -43);
-    EXPECT_EQ(testValue, -43);
+    EXPECT_EQ(intVal.value(), -1043);
+    EXPECT_EQ(testValue, -1043);
 }
 
 TEST(redis_value, Float_Double) {

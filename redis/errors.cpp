@@ -21,7 +21,7 @@ struct redis_error_code_category : std::error_category {
     }
 };
 
-struct redis_client_error_codeCategory : std::error_category {
+struct redis_client_error_code_category : std::error_category {
     const char* name() const noexcept override { return "client_error_code"; }
 
     std::string message(int ev) const override {
@@ -40,13 +40,16 @@ struct redis_client_error_codeCategory : std::error_category {
         case client_error_code::response_command_mismatch:
             return "There was a mismatch between the number of commands sent "
                    "and the number of responses received";
+        case client_error_code::client_stopped:
+            return "The client has been stopped and no further requests will "
+                   "succeed";
         default:
             return "(unrecognized client_error_code)";
         }
     }
 };
 
-struct redis_subscriber_error_codeCategory : std::error_category {
+struct redis_subscriber_error_code_category : std::error_category {
     const char* name() const noexcept override {
         return "redis_subscriber_error_codeCategory";
     }
@@ -97,10 +100,10 @@ struct parse_error_codeCategory : std::error_category {
 };
 
 const redis_error_code_category the_redis_error_code_category{};
-const redis_client_error_codeCategory the_redis_client_error_codeCategory{};
-const redis_subscriber_error_codeCategory
-    the_redis_subscriber_error_codeCategory{};
-const redis_client_error_codeCategory theparse_error_codeCategory{};
+const redis_client_error_code_category the_redis_client_error_code_category{};
+const redis_subscriber_error_code_category
+    the_redis_subscriber_error_code_category{};
+const redis_client_error_code_category theparse_error_code_category{};
 
 } // namespace detail
 
@@ -109,16 +112,16 @@ std::error_code make_error_code(error_code e) {
 }
 
 std::error_code make_error_code(client_error_code e) {
-    return {static_cast<int>(e), detail::the_redis_client_error_codeCategory};
+    return {static_cast<int>(e), detail::the_redis_client_error_code_category};
 }
 
 std::error_code make_error_code(subscriber_error_code e) {
     return {static_cast<int>(e),
-            detail::the_redis_subscriber_error_codeCategory};
+            detail::the_redis_subscriber_error_code_category};
 }
 
 std::error_code make_error_code(parse_error_code e) {
-    return {static_cast<int>(e), detail::theparse_error_codeCategory};
+    return {static_cast<int>(e), detail::theparse_error_code_category};
 }
 
 } // namespace redis

@@ -27,7 +27,10 @@ enum class client_error_code : uint8_t {
     read_error,
     /// response_command_mismatch There was a mismatch between the number of
     /// commands sent and the number of responses received.
-    response_command_mismatch
+    response_command_mismatch,
+    /// client_stopped The client has been stopped and no further requests will
+    /// succeed
+    client_stopped
 };
 
 enum class subscriber_error_code : uint8_t {

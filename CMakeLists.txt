@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.12)
-project(redis-client)
+project(redis_client)
 
 list(APPEND CMAKE_MODULE_PATH ${CMAKE_BINARY_DIR})
 list(APPEND CMAKE_PREFIX_PATH ${CMAKE_BINARY_DIR})
@@ -97,6 +97,13 @@ set(SOURCE_FILES
     "redis/subscriber.cpp"
     "redis/value.cpp"
 )
+
+# Extra debugging
+option(CPOOL_TRACE_LOGGING "Extended cpool debug prints" OFF)
+message("-- CPOOL_TRACE_LOGGING is ${CPOOL_TRACE_LOGGING}")
+if(CPOOL_TRACE_LOGGING)
+    add_compile_definitions(CPOOL_TRACE_LOGGING)
+endif(CPOOL_TRACE_LOGGING)
 
 add_library(${TARGET_NAME} STATIC ${SOURCE_FILES})
 
