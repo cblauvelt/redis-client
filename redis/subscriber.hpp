@@ -100,7 +100,7 @@ class redis_subscriber {
      * @brief Reads messages published from the channel
      *
      */
-    [[nodiscard]] awaitable<redis_reply> read();
+    [[nodiscard]] awaitable<reply> read();
 
     /**
      * @brief Sets the callback to be executed when an error message is
@@ -144,7 +144,7 @@ class redis_subscriber {
     redis_subscriber_connection connection_;
 
     /// The queue to read messages from
-    channel<void(cpool::error_code, redis_reply)> message_queue_;
+    channel<void(cpool::error_code, reply)> message_queue_;
 
     // event handlers
     /// Called when there is a call to logMessage. Does nothing if set to

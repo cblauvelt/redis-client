@@ -70,13 +70,23 @@ class client : public enable_shared_from_this<client> {
      * @brief Sends a PING command to the server to test connectivity.
      * received.
      */
-    [[nodiscard]] awaitable<redis_reply> ping();
+    [[nodiscard]] awaitable<reply> ping();
 
     /**
      * @brief Fetches a new connection and sends the command to the server.
      * @param command The command to send to the server.
+     * @returns The reply from the server. This reply can include the requested
+     * value or an error. Check for errors with `reply.error()`
      */
-    [[nodiscard]] awaitable<redis_reply> send(command command);
+    [[nodiscard]] awaitable<reply> send(command command);
+
+    /**
+     * @brief Fetches a new connection and sends the commands to the server.
+     * @param commands The commands to send to the server.
+     * @returns The replies from the server. This reply can include the
+     * requested value or an error.
+     */
+    [[nodiscard]] awaitable<replies> send(commands commands);
 
     /**
      * @brief Sets the callback to be executed when an error message is
@@ -89,13 +99,6 @@ class client : public enable_shared_from_this<client> {
      */
     bool running() const;
 
-    /**
-     * @brief Logs the message using the mOnLog event hander.
-     * @param level The level of logging @see log_level
-     * @param message The message to be logged.
-     */
-    void log_message(log_level level, string_view message);
-
     // Event handlers
   private:
     /**
@@ -103,8 +106,16 @@ class client : public enable_shared_from_this<client> {
      * @param connection The connection to use to connect to the server.
      * @param command The command to send to the server.
      */
-    [[nodiscard]] awaitable<redis_reply> send(cpool::tcp_connection* connection,
-                                              command command);
+    [[nodiscard]] awaitable<reply> send(cpool::tcp_connection* connection,
+                                        command command);
+
+    /**
+     * @brief Used to send the command to the server.
+     * @param connection The connection to use to connect to the server.
+     * @param command The command to send to the server.
+     */
+    [[nodiscard]] awaitable<replies> send(cpool::tcp_connection* connection,
+                                          commands commands);
 
     std::unique_ptr<cpool::tcp_connection> connection_ctor();
 
@@ -115,6 +126,13 @@ class client : public enable_shared_from_this<client> {
     [[nodiscard]] awaitable<cpool::error>
     auth_client(cpool::tcp_connection* conn,
                 const cpool::client_connection_state state);
+
+    /**
+     * @brief Logs the message using the on_log_ event hander.
+     * @param level The level of logging @see log_level
+     * @param message The message to be logged.
+     */
+    void log_message(log_level level, string_view message);
 
   private:
     /// The io_service that is used to schedule asynchronous events.

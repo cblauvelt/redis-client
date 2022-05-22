@@ -3,29 +3,29 @@
 
 namespace redis {
 
-redis_reply::redis_reply(const std::vector<uint8_t>& buffer) {
+reply::reply(const std::vector<uint8_t>& buffer) {
     std::tie(value_, error_, std::ignore) =
         parse_reply(buffer.begin(), buffer.end());
 }
 
-redis_reply::redis_reply(const std::error_code& error)
+reply::reply(const std::error_code& error)
     : error_(error) {}
 
 std::vector<uint8_t>::const_iterator
-redis_reply::load_data(std::vector<uint8_t>::const_iterator it,
-                       const std::vector<uint8_t>::const_iterator end) {
+reply::load_data(std::vector<uint8_t>::const_iterator it,
+                 const std::vector<uint8_t>::const_iterator end) {
     std::vector<uint8_t>::const_iterator retIt = it;
     std::tie(value_, error_, retIt) = parse_reply(it, end);
     return retIt;
 }
 
-redis_value redis_reply::value() const { return value_; }
+redis_value reply::value() const { return value_; }
 
-std::error_code redis_reply::error() const { return error_; }
+std::error_code reply::error() const { return error_; }
 
 parse_response
-redis_reply::parse_reply(std::vector<uint8_t>::const_iterator it,
-                         const std::vector<uint8_t>::const_iterator end) {
+reply::parse_reply(std::vector<uint8_t>::const_iterator it,
+                   const std::vector<uint8_t>::const_iterator end) {
     redis_value value;
     std::error_code error;
 
@@ -52,9 +52,9 @@ redis_reply::parse_reply(std::vector<uint8_t>::const_iterator it,
     return parse_response(redis_value(), error, end);
 }
 
-parse_response redis_reply::parse_simple_string(
-    std::vector<uint8_t>::const_iterator it,
-    const std::vector<uint8_t>::const_iterator end) {
+parse_response
+reply::parse_simple_string(std::vector<uint8_t>::const_iterator it,
+                           const std::vector<uint8_t>::const_iterator end) {
     string value;
     std::error_code error;
 
@@ -72,8 +72,8 @@ parse_response redis_reply::parse_simple_string(
 }
 
 parse_response
-redis_reply::parse_error(std::vector<uint8_t>::const_iterator it,
-                         const std::vector<uint8_t>::const_iterator end) {
+reply::parse_error(std::vector<uint8_t>::const_iterator it,
+                   const std::vector<uint8_t>::const_iterator end) {
     string value;
     std::error_code error;
 
@@ -96,8 +96,8 @@ redis_reply::parse_error(std::vector<uint8_t>::const_iterator it,
 }
 
 parse_response
-redis_reply::parse_bulk_string(std::vector<uint8_t>::const_iterator it,
-                               const std::vector<uint8_t>::const_iterator end) {
+reply::parse_bulk_string(std::vector<uint8_t>::const_iterator it,
+                         const std::vector<uint8_t>::const_iterator end) {
     string header;
     std::vector<uint8_t> value;
     std::error_code error;
@@ -151,8 +151,8 @@ redis_reply::parse_bulk_string(std::vector<uint8_t>::const_iterator it,
 }
 
 parse_response
-redis_reply::parse_integer(std::vector<uint8_t>::const_iterator it,
-                           const std::vector<uint8_t>::const_iterator end) {
+reply::parse_integer(std::vector<uint8_t>::const_iterator it,
+                     const std::vector<uint8_t>::const_iterator end) {
     string message;
     int value;
     std::error_code error;
@@ -181,8 +181,8 @@ redis_reply::parse_integer(std::vector<uint8_t>::const_iterator it,
 }
 
 parse_response
-redis_reply::parse_array(std::vector<uint8_t>::const_iterator it,
-                         const std::vector<uint8_t>::const_iterator end) {
+reply::parse_array(std::vector<uint8_t>::const_iterator it,
+                   const std::vector<uint8_t>::const_iterator end) {
     string header;
     std::error_code error;
     redis_array array;

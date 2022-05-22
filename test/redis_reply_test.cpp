@@ -12,8 +12,8 @@ TEST(RedisReply, SimpleString) {
     std::vector<uint8_t> inputBuffer =
         std::vector<uint8_t>{'+', 'P', 'O', 'N', 'G', '\r', '\n'};
 
-    redis::redis_reply reply1(inputBuffer);
-    redis::redis_reply reply2;
+    redis::reply reply1(inputBuffer);
+    redis::reply reply2;
     auto it = reply2.load_data(inputBuffer.begin(), inputBuffer.end());
 
     // Test first constructor
@@ -29,7 +29,7 @@ TEST(RedisReply, SimpleString) {
 }
 
 TEST(RedisReply, ErrorCode) {
-    redis::redis_reply reply(redis::client_error_code::write_error);
+    redis::reply reply(redis::client_error_code::write_error);
 
     EXPECT_EQ(reply.error(), redis::client_error_code::write_error);
     EXPECT_EQ(reply.error().message(),
@@ -42,8 +42,8 @@ TEST(RedisReply, Error) {
                         "wrong kind of value\r\n";
     std::vector<uint8_t> inputBuffer = redis::string_to_vector(input);
 
-    redis::redis_reply reply1(inputBuffer);
-    redis::redis_reply reply2;
+    redis::reply reply1(inputBuffer);
+    redis::reply reply2;
     auto it = reply2.load_data(inputBuffer.begin(), inputBuffer.end());
 
     // Test first constructor
@@ -65,8 +65,8 @@ TEST(RedisReply, Redis_Bulk_string) {
     std::vector<uint8_t> inputBuffer =
         std::vector<uint8_t>{'$', '2', '\r', '\n', '4', '2', '\r', '\n'};
 
-    redis::redis_reply reply1(inputBuffer);
-    redis::redis_reply reply2;
+    redis::reply reply1(inputBuffer);
+    redis::reply reply2;
     auto it = reply2.load_data(inputBuffer.begin(), inputBuffer.end());
 
     // Test first constructor
@@ -83,7 +83,7 @@ TEST(RedisReply, Redis_Bulk_string) {
     // test null strings
     inputBuffer =
         std::vector<uint8_t>{'$', '-', '1', '\r', '\n'}; // null string
-    reply1 = redis::redis_reply(inputBuffer);
+    reply1 = redis::reply(inputBuffer);
     it = reply2.load_data(inputBuffer.begin(), inputBuffer.end());
     EXPECT_FALSE(reply1.error());
     EXPECT_EQ(reply1.value().type(), redis::redis_type::nil);
@@ -93,7 +93,7 @@ TEST(RedisReply, Redis_Bulk_string) {
     // test empty strings
     inputBuffer =
         std::vector<uint8_t>{'$', '0', '\r', '\n', '\r', '\n'}; // empty string
-    reply1 = redis::redis_reply(inputBuffer);
+    reply1 = redis::reply(inputBuffer);
     it = reply2.load_data(inputBuffer.begin(), inputBuffer.end());
     EXPECT_FALSE(reply1.error());
     result1 = reply1.value().as<string>().value();
@@ -107,8 +107,8 @@ TEST(RedisReply, Integer) {
     std::vector<uint8_t> inputBuffer =
         std::vector<uint8_t>{':', '1', '0', '0', '0', '\r', '\n'};
 
-    redis::redis_reply reply1(inputBuffer);
-    redis::redis_reply reply2;
+    redis::reply reply1(inputBuffer);
+    redis::reply reply2;
     auto it = reply2.load_data(inputBuffer.begin(), inputBuffer.end());
 
     // // Test first constructor
@@ -127,8 +127,8 @@ TEST(RedisReply, Array) {
     std::string input = "*3\r\n$3\r\nfoo\r\n$-1\r\n$3\r\nbar\r\n";
     std::vector<uint8_t> inputBuffer = redis::string_to_vector(input);
 
-    redis::redis_reply reply1(inputBuffer);
-    redis::redis_reply reply2;
+    redis::reply reply1(inputBuffer);
+    redis::reply reply2;
     auto it = reply2.load_data(inputBuffer.begin(), inputBuffer.end());
 
     // // Test first constructor
@@ -155,8 +155,8 @@ TEST(RedisReply, PingResponseArray) {
     redis::redis_array expected = redis::redis_array{
         redis::redis_value("pong"), redis::redis_value(redis::bulk_string())};
 
-    redis::redis_reply reply1(inputBuffer);
-    redis::redis_reply reply2;
+    redis::reply reply1(inputBuffer);
+    redis::reply reply2;
     auto it = reply2.load_data(inputBuffer.begin(), inputBuffer.end());
 
     // Test first constructor

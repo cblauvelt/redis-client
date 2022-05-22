@@ -41,16 +41,16 @@ void client::set_config(client_config config) {
 
 client_config client::config() const { return config_; }
 
-awaitable<redis_reply> client::ping() { return send(command("PING")); }
+awaitable<reply> client::ping() { return send(command("PING")); }
 
 // Send Commands
-awaitable<redis_reply> client::send(command command) {
+awaitable<reply> client::send(command command) {
     log_message(redis::log_level::trace,
                 fmt::format("getting connection - connections {} - idle {}",
                             con_pool_->size(), con_pool_->size_idle()));
     auto connection = co_await con_pool_->get_connection();
     if (connection == nullptr) {
-        co_return redis_reply(redis::client_error_code::client_stopped);
+        co_return reply(redis::client_error_code::client_stopped);
     }
 
     auto defer_release = absl::Cleanup([&]() {
@@ -66,8 +66,32 @@ awaitable<redis_reply> client::send(command command) {
     co_return reply;
 }
 
-awaitable<redis_reply> client::send(cpool::tcp_connection* connection,
-                                    command command) {
+awaitable<replies> client::send(commands commands) {
+    log_message(redis::log_level::trace,
+                fmt::format("getting connection - connections {} - idle {}",
+                            con_pool_->size(), con_pool_->size_idle()));
+    auto connection = co_await con_pool_->get_connection();
+    if (connection == nullptr) {
+        co_return redis::replies(
+            commands.size(),
+            redis::reply{redis::client_error_code::client_stopped});
+    }
+
+    auto defer_release = absl::Cleanup([&]() {
+        if (connection != nullptr) {
+            connection->expires_never();
+
+            con_pool_->release_connection(connection);
+        }
+    });
+
+    auto replies = co_await send(connection, commands);
+
+    co_return replies;
+}
+
+awaitable<reply> client::send(cpool::tcp_connection* connection,
+                              command command) {
     auto buffer = command.serialized_command();
     auto [write_error, bytes_written] =
         co_await connection->async_write(asio::buffer(buffer));
@@ -81,10 +105,47 @@ awaitable<redis_reply> client::send(cpool::tcp_connection* connection,
     if (read_error || bytes_read == 0) {
         co_return client_error_code::read_error;
     }
-    redis_reply reply;
+    reply reply;
     reply.load_data(read_buffer.cbegin(), read_buffer.cbegin() + bytes_read);
 
     co_return reply;
+}
+
+awaitable<replies> client::send(cpool::tcp_connection* connection,
+                                commands commands) {
+    std::string buffer;
+    for (auto& command : commands) {
+        buffer += command.serialized_command();
+    }
+
+    auto [write_error, bytes_written] =
+        co_await connection->async_write(asio::buffer(buffer));
+    if (write_error || bytes_written != buffer.size()) {
+        co_return redis::replies(
+            commands.size(),
+            redis::reply{redis::client_error_code::write_error});
+    }
+
+    std::vector<uint8_t> read_buffer(4096);
+    auto [read_error, bytes_read] =
+        co_await connection->async_read_some(asio::buffer(read_buffer));
+    if (read_error || bytes_read == 0) {
+        co_return redis::replies(
+            commands.size(),
+            redis::reply{redis::client_error_code::read_error});
+    }
+
+    redis::replies replies;
+    redis::buffer_t::const_iterator it = read_buffer.cbegin();
+    size_t bytes_remaining = bytes_read;
+    for (int i = 0; i < commands.size(); i++) {
+        redis::reply reply;
+        it = reply.load_data(it, it + bytes_remaining);
+        bytes_remaining = it - read_buffer.cbegin();
+        replies.push_back(reply);
+    }
+
+    co_return replies;
 }
 
 std::unique_ptr<cpool::tcp_connection> client::connection_ctor() {
