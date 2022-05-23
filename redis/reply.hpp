@@ -15,7 +15,7 @@ namespace redis {
 using namespace std;
 
 /// The response returned from a call to parseReply
-using parse_response = std::tuple<redis_value, std::error_code,
+using parse_response = std::tuple<value, std::error_code,
                                   std::vector<std::uint8_t>::const_iterator>;
 
 /**
@@ -56,9 +56,9 @@ class reply {
               const std::vector<std::uint8_t>::const_iterator end);
 
     /**
-     * @returns The redis_value contained in the reply, if any.
+     * @returns The value contained in the reply, if any.
      */
-    redis_value value() const;
+    redis::value value() const;
 
     /**
      * @returns The error contained in the reply, if any.
@@ -122,7 +122,7 @@ class reply {
                 const std::vector<std::uint8_t>::const_iterator end);
 
   private:
-    redis_value value_;
+    redis::value value_;
     std::error_code error_;
 };
 

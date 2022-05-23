@@ -8,6 +8,7 @@
 #include "cpool/awaitable_latch.hpp"
 #include "redis/client.hpp"
 #include "redis/command.hpp"
+#include "redis/commands-hash.hpp"
 #include "redis/commands-json.hpp"
 #include "redis/commands.hpp"
 
@@ -46,7 +47,7 @@ void testForString(std::string cmd, redis::reply reply, string expected) {
 void testForInt(std::string cmd, redis::reply reply, int expected) {
     testForError(cmd, reply);
 
-    redis_value value = reply.value();
+    redis::value value = reply.value();
     auto optInt = value.as<int>();
     EXPECT_TRUE(optInt.has_value());
     EXPECT_EQ(optInt.value(), expected);
@@ -55,7 +56,7 @@ void testForInt(std::string cmd, redis::reply reply, int expected) {
 void testForFloat(std::string cmd, redis::reply reply, float expected) {
     testForError(cmd, reply);
 
-    redis_value value = reply.value();
+    redis::value value = reply.value();
     auto optFloat = value.as<float>();
 
     EXPECT_TRUE(optFloat.has_value());
@@ -65,7 +66,7 @@ void testForFloat(std::string cmd, redis::reply reply, float expected) {
 void testForDouble(std::string cmd, redis::reply reply, double expected) {
     testForError(cmd, reply);
 
-    redis_value value = reply.value();
+    redis::value value = reply.value();
     auto optDouble = value.as<double>();
 
     EXPECT_TRUE(optDouble.has_value());
@@ -75,17 +76,47 @@ void testForDouble(std::string cmd, redis::reply reply, double expected) {
 void testForArray(std::string cmd, redis::reply reply, redis_array expected) {
     testForError(cmd, reply);
 
-    redis_value value = reply.value();
+    redis::value value = reply.value();
     auto optArray = value.as<redis_array>();
+    redis::redis_array array;
 
     EXPECT_TRUE(optArray.has_value());
-    EXPECT_EQ(optArray.value(), expected);
+    EXPECT_NO_THROW(array = optArray.value());
+    EXPECT_EQ(array.size(), expected.size());
+    for (int i = 0; i < array.size(); i++) {
+        // EXPECT_EQ(array[i].type(), expected[i].type());
+        EXPECT_EQ(array[i], expected[i]);
+    }
+}
+
+void testForHash(std::string cmd, redis::reply reply, redis::hash expected) {
+    testForError(cmd, reply);
+
+    redis::value value = reply.value();
+    auto optHash = value.as<redis::hash>();
+    redis::hash hash;
+
+    EXPECT_TRUE(optHash.has_value());
+    EXPECT_NO_THROW(hash = optHash.value());
+    EXPECT_EQ(hash.size(), expected.size());
+
+    for (auto [key, value] : hash) {
+        EXPECT_EQ(value, expected[key]);
+    }
+}
+
+void testForBool(std::string cmd, redis::reply reply, bool expected) {
+    testForError(cmd, reply);
+
+    redis::value value = reply.value();
+
+    EXPECT_EQ(value.as<bool>().value(), expected) << cmd;
 }
 
 void testForSuccess(std::string cmd, redis::reply reply) {
     testForError(cmd, reply);
 
-    redis_value value = reply.value();
+    redis::value value = reply.value();
 
     EXPECT_TRUE(value.as<bool>().value_or(false)) << cmd;
 }
@@ -130,31 +161,6 @@ awaitable<void> test_basic(client& client, int c,
     co_return;
 }
 
-awaitable<void> test_pipeline_basic(client& client, int c,
-                                    cpool::awaitable_latch& barrier) {
-    auto exec = co_await cpool::net::this_coro::executor;
-    string key = std::string("foo") + std::to_string(c);
-    redis::commands commands{redis::set(key, "255"), redis::incrby(key, 2),
-                             redis::get(key)};
-    redis::replies replies;
-
-    for (int i = 0; i < 2; i++) {
-        replies = co_await client.send(commands);
-        EXPECT_EQ(commands.size(), replies.size());
-        auto reply1 = replies[0];
-        testForSuccess("SET", reply1);
-
-        auto reply2 = replies[1];
-        testForInt("INCRBY", reply2, 257);
-
-        auto reply3 = replies[2];
-        testForInt("GET", reply3, 257);
-    }
-
-    barrier.count_down();
-    co_return;
-}
-
 awaitable<void> run_tests(asio::io_context& ctx) {
     const int num_runners = 50;
     auto exec = co_await cpool::net::this_coro::executor;
@@ -180,6 +186,31 @@ awaitable<void> run_tests(asio::io_context& ctx) {
     co_return;
 }
 
+awaitable<void> test_pipeline_basic(client& client, int c,
+                                    cpool::awaitable_latch& barrier) {
+    auto exec = co_await cpool::net::this_coro::executor;
+    string key = std::string("foo") + std::to_string(c);
+    redis::commands commands{redis::set(key, "255"), redis::incrby(key, 2),
+                             redis::get(key)};
+    redis::replies replies;
+
+    for (int i = 0; i < 2; i++) {
+        replies = co_await client.send(commands);
+        EXPECT_EQ(commands.size(), replies.size());
+        auto reply1 = replies[0];
+        testForSuccess("SET", reply1);
+
+        auto reply2 = replies[1];
+        testForInt("INCRBY", reply2, 257);
+
+        auto reply3 = replies[2];
+        testForInt("GET", reply3, 257);
+    }
+
+    barrier.count_down();
+    co_return;
+}
+
 awaitable<void> run_pipeline_tests(asio::io_context& ctx) {
     const int num_runners = 50;
     auto exec = co_await cpool::net::this_coro::executor;
@@ -198,6 +229,108 @@ awaitable<void> run_pipeline_tests(asio::io_context& ctx) {
     for (int i = 0; i < num_runners; i++) {
         cpool::co_spawn(ctx, test_pipeline_basic(client, i, barrier),
                         cpool::detached);
+    }
+
+    co_await barrier.wait();
+
+    ctx.stop();
+    co_return;
+}
+
+awaitable<void> test_hash(client& client, int c,
+                          cpool::awaitable_latch& barrier) {
+    auto exec = co_await cpool::net::this_coro::executor;
+    string key = std::string("hash") + std::to_string(c);
+    redis::reply reply;
+
+    auto test_hash = redis::hash{{"field1", redis::value("42")},
+                                 {"field2", redis::value("Hello")},
+                                 {"field3", redis::value("World")}};
+
+    auto test_arr = redis::redis_array{
+        redis::value("field1"), redis::value("42"),
+        redis::value("field2"), redis::value(string_to_vector("Hello")),
+        redis::value("field3"), redis::value(string_to_vector("World"))};
+
+    auto test_keys = redis::redis_array{
+        redis::value("field1"), redis::value("field2"), redis::value("field3")};
+    auto test_vals = redis::redis_array{
+        redis::value("42"), redis::value(string_to_vector("Hello")),
+        redis::value(string_to_vector("World"))};
+
+    try {
+        for (int i = 0; i < 1; i++) {
+            reply = co_await client.send(
+                redis::hset(key, "field1", redis::value("42")));
+            testForInt("HSET", reply, 1);
+
+            reply = co_await client.send(redis::hset(key, test_hash));
+            testForInt("HSET", reply, 2);
+
+            reply = co_await client.send(redis::hget(key, "field2"));
+            testForString("HGET", reply, (string)test_hash["field2"]);
+
+            reply = co_await client.send(redis::hgetall(key));
+            testForType("HGETALL", reply, redis_type::array);
+            testForArray("HGETALL", reply, test_arr);
+            testForHash("HGETALL", reply, test_hash);
+
+            reply = co_await client.send(redis::hkeys(key));
+            testForArray("HKEYS", reply, test_keys);
+
+            reply = co_await client.send(redis::hvals(key));
+            testForArray("HVALS", reply, test_vals);
+
+            reply = co_await client.send(redis::hincrby(key, "field1", 1));
+            testForInt("HINCRBY", reply, 43);
+
+            reply =
+                co_await client.send(redis::hincrbyfloat(key, "field1", 2.3));
+            testForFloat("HINCRBY", reply, 45.3);
+
+            reply = co_await client.send(redis::hexists(key, "field1"));
+            testForBool("HEXISTS", reply, true);
+
+            reply = co_await client.send(redis::hlen(key));
+            testForInt("HLEN", reply, 3);
+
+            reply = co_await client.send(redis::hdel(key, "field1"));
+            testForInt("HDEL", reply, 1);
+
+            reply = co_await client.send(redis::hexists(key, "field1"));
+            testForBool("HEXISTS", reply, false);
+
+            reply = co_await client.send(redis::hlen(key));
+            testForInt("HLEN", reply, 2);
+
+            reply = co_await client.send(redis::del(key));
+            testForInt("DEL", reply, 1);
+        }
+    } catch (const std::exception& ex) {
+        EXPECT_EQ(std::string(), ex.what());
+    }
+
+    barrier.count_down();
+    co_return;
+}
+
+awaitable<void> run_hash_tests(asio::io_context& ctx) {
+    const int num_runners = 1;
+    auto exec = co_await cpool::net::this_coro::executor;
+    cpool::awaitable_latch barrier(exec, num_runners);
+    auto host = get_env_var("REDIS_HOST").value_or(DEFAULT_REDIS_HOST);
+
+    logMessage(redis::log_level::info, host);
+    client client(exec, host, 6379);
+    client.set_logging_handler(
+        std::bind(logMessage, std::placeholders::_1, std::placeholders::_2));
+
+    auto reply = co_await client.ping();
+    testForString("PING", reply, "PONG");
+    EXPECT_TRUE(client.running());
+
+    for (int i = 0; i < num_runners; i++) {
+        cpool::co_spawn(ctx, test_hash(client, i, barrier), cpool::detached);
     }
 
     co_await barrier.wait();
@@ -348,10 +481,9 @@ awaitable<void> test_json(client& client, int c,
         testForInt("JSON.OBJLEN", reply, 3);
 
         reply = co_await client.send(json_objkeys(key1, "."));
-        redis_array array =
-            redis_array{redis_value(string_to_vector("name")),
-                        redis_value(string_to_vector("lastSeen")),
-                        redis_value(string_to_vector("loggedOut"))};
+        redis_array array = redis_array{value(string_to_vector("name")),
+                                        value(string_to_vector("lastSeen")),
+                                        value(string_to_vector("loggedOut"))};
         testForArray("JSON.OBJKEYS", reply, array);
     }
 
@@ -393,6 +525,14 @@ TEST(Redis, PipelineTest) {
     asio::io_context ctx(1);
 
     cpool::co_spawn(ctx, run_pipeline_tests(std::ref(ctx)), cpool::detached);
+
+    ctx.run();
+}
+
+TEST(Redis, HashTest) {
+    asio::io_context ctx(1);
+
+    cpool::co_spawn(ctx, run_hash_tests(std::ref(ctx)), cpool::detached);
 
     ctx.run();
 }

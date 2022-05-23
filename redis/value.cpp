@@ -4,35 +4,60 @@
 
 namespace redis {
 
-redis_value::redis_value()
+value::value()
     : value_()
     , type_(redis_type::nil) {}
 
-redis_value::redis_value(string val)
+value::value(string val)
     : value_(val)
     , type_(redis_type::simple_string) {}
 
-redis_value::redis_value(error val)
+value::value(error val)
     : value_(std::move(val))
     , type_(redis_type::error) {}
 
-redis_value::redis_value(int64_t val)
+value::value(int64_t val)
     : value_(std::move(val))
     , type_(redis_type::integer) {}
 
-redis_value::redis_value(int val)
+value::value(int val)
     : value_(std::move(val))
     , type_(redis_type::integer) {}
 
-redis_value::redis_value(bulk_string val)
+value::value(bulk_string val)
     : value_(std::move(val))
     , type_(redis_type::bulk_string) {}
 
-redis_value::redis_value(redis_array val)
+value::value(redis_array val)
     : value_(std::move(val))
     , type_(redis_type::array) {}
 
-bool redis_value::operator==(const redis_value& rhs) const {
+value::value(hash val)
+    : value_()
+    , type_(redis_type::array) {
+    redis::redis_array arr;
+    for (auto [key, value] : val) {
+        arr.emplace_back(std::move(key));
+        arr.emplace_back(std::move(value));
+    }
+    value_ = std::move(arr);
+}
+
+bool value::operator==(const value& rhs) const {
+    // convert bulk_string to simple string
+    if (type_ == redis_type::simple_string &&
+        rhs.type_ == redis_type::bulk_string) {
+        return (std::get<std::string>(value_) ==
+                vector_to_string(std::get<bulk_string>(rhs.value_)));
+    }
+
+    if (rhs.type_ == redis_type::simple_string &&
+        type_ == redis_type::bulk_string) {
+        return (std::get<std::string>(rhs.value_) ==
+                vector_to_string(std::get<bulk_string>(value_)));
+    }
+
+    // If the types don't match they're not equivalent
     if (type_ != rhs.type_) {
         return false;
     }
@@ -64,10 +89,14 @@ bool redis_value::operator==(const redis_value& rhs) const {
     default:
         return false;
     }
+
+    return true;
 }
 
-bool redis_value::operator!=(const redis_value& rhs) const { return !(*this); }
+bool value::operator!=(const value& rhs) const { return !(*this == rhs); }
+// bool value::operator!=(const value& rhs) const { return (type_ != rhs.type_);
+// }
 
-redis_type redis_value::type() const { return type_; }
+redis_type value::type() const { return type_; }
 
 } // namespace redis

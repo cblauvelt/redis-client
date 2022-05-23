@@ -153,7 +153,7 @@ TEST(RedisReply, PingResponseArray) {
     std::string input = "*2\r\n$4\r\npong\r\n$0\r\n\r\n";
     std::vector<uint8_t> inputBuffer = redis::string_to_vector(input);
     redis::redis_array expected = redis::redis_array{
-        redis::redis_value("pong"), redis::redis_value(redis::bulk_string())};
+        redis::value("pong"), redis::value(redis::bulk_string())};
 
     redis::reply reply1(inputBuffer);
     redis::reply reply2;

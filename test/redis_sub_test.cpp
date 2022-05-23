@@ -43,7 +43,7 @@ void testForString(std::string cmd, redis::reply reply, string expected) {
 void testForInt(std::string cmd, redis::reply reply, int expected) {
     testForError(cmd, reply);
 
-    redis_value value = reply.value();
+    value value = reply.value();
     auto optInt = value.as<int>();
     EXPECT_TRUE(optInt.has_value());
     EXPECT_EQ(optInt.value(), expected);
@@ -52,7 +52,7 @@ void testForInt(std::string cmd, redis::reply reply, int expected) {
 void testForFloat(std::string cmd, redis::reply reply, float expected) {
     testForError(cmd, reply);
 
-    redis_value value = reply.value();
+    value value = reply.value();
     auto optFloat = value.as<float>();
 
     EXPECT_TRUE(optFloat.has_value());
@@ -62,7 +62,7 @@ void testForFloat(std::string cmd, redis::reply reply, float expected) {
 void testForDouble(std::string cmd, redis::reply reply, double expected) {
     testForError(cmd, reply);
 
-    redis_value value = reply.value();
+    value value = reply.value();
     auto optDouble = value.as<double>();
 
     EXPECT_TRUE(optDouble.has_value());
@@ -72,7 +72,7 @@ void testForDouble(std::string cmd, redis::reply reply, double expected) {
 void testForArray(std::string cmd, redis::reply reply, redis_array expected) {
     testForError(cmd, reply);
 
-    redis_value value = reply.value();
+    value value = reply.value();
     auto optArray = value.as<redis_array>();
 
     EXPECT_TRUE(optArray.has_value());
@@ -87,7 +87,7 @@ void testForArray(std::string cmd, redis::reply reply, redis_array expected) {
 void testForSuccess(std::string cmd, redis::reply reply) {
     testForError(cmd, reply);
 
-    redis_value value = reply.value();
+    value value = reply.value();
 
     EXPECT_TRUE(value.as<bool>().value_or(false)) << cmd;
 }
@@ -172,16 +172,14 @@ awaitable<void> run_tests(asio::io_context& ctx) {
     EXPECT_FALSE(error) << error.message();
     reply = co_await subscriber.read();
     testForArray("SUBSCRIBE", reply,
-                 redis_array{redis_value(string_to_vector("subscribe")),
-                             redis_value(string_to_vector(channel)),
-                             redis_value(1)});
+                 redis_array{value(string_to_vector("subscribe")),
+                             value(string_to_vector(channel)), value(1)});
     error = co_await subscriber.psubscribe(pattern);
     EXPECT_FALSE(error) << error.message();
     reply = co_await subscriber.read();
     testForArray("PSUBSCRIBE", reply,
-                 redis_array{redis_value(string_to_vector("psubscribe")),
-                             redis_value(string_to_vector(pattern)),
-                             redis_value(2)});
+                 redis_array{value(string_to_vector("psubscribe")),
+                             value(string_to_vector(pattern)), value(2)});
 
     // publish messages
     co_spawn(exec, publish_messages(client, channel, 50), detached);
@@ -209,16 +207,14 @@ awaitable<void> run_tests(asio::io_context& ctx) {
     EXPECT_FALSE(error) << error.message();
     reply = co_await subscriber.read();
     testForArray("UNSUBSCRIBE", reply,
-                 redis_array{redis_value(string_to_vector("unsubscribe")),
-                             redis_value(string_to_vector(channel)),
-                             redis_value(1)});
+                 redis_array{value(string_to_vector("unsubscribe")),
+                             value(string_to_vector(channel)), value(1)});
     error = co_await subscriber.punsubscribe(pattern);
     EXPECT_FALSE(error) << error.message();
     reply = co_await subscriber.read();
     testForArray("PUNSUBSCRIBE", reply,
-                 redis_array{redis_value(string_to_vector("punsubscribe")),
-                             redis_value(string_to_vector(pattern)),
-                             redis_value(0)});
+                 redis_array{value(string_to_vector("punsubscribe")),
+                             value(string_to_vector(pattern)), value(0)});
 
     cout << "stopping reader" << endl;
     co_await subscriber.stop();
