@@ -19,18 +19,18 @@ reply::load_data(std::vector<uint8_t>::const_iterator it,
     return retIt;
 }
 
-redis_value reply::value() const { return value_; }
+value reply::value() const { return value_; }
 
 std::error_code reply::error() const { return error_; }
 
 parse_response
 reply::parse_reply(std::vector<uint8_t>::const_iterator it,
                    const std::vector<uint8_t>::const_iterator end) {
-    redis_value value;
+    redis::value value;
     std::error_code error;
 
     if (it == end) {
-        return parse_response(redis_value(), parse_error_code::eof, end);
+        return parse_response(redis::value(), parse_error_code::eof, end);
     }
 
     // Discover return type
@@ -49,7 +49,7 @@ reply::parse_reply(std::vector<uint8_t>::const_iterator it,
         break;
     }
 
-    return parse_response(redis_value(), error, end);
+    return parse_response(redis::value(), error, end);
 }
 
 parse_response
@@ -59,7 +59,7 @@ reply::parse_simple_string(std::vector<uint8_t>::const_iterator it,
     std::error_code error;
 
     if (it == end) {
-        return parse_response(redis_value(), parse_error_code::eof, it);
+        return parse_response(redis::value(), parse_error_code::eof, it);
     }
 
     while (it != end && *it != '\r') {
@@ -68,7 +68,7 @@ reply::parse_simple_string(std::vector<uint8_t>::const_iterator it,
     // consume the '\r\n'
     it += 2;
 
-    return parse_response(redis_value(value), error, it);
+    return parse_response(redis::value(value), error, it);
 }
 
 parse_response
@@ -78,7 +78,7 @@ reply::parse_error(std::vector<uint8_t>::const_iterator it,
     std::error_code error;
 
     if (it == end) {
-        return parse_response(redis_value(), parse_error_code::eof, it);
+        return parse_response(redis::value(), parse_error_code::eof, it);
     }
 
     while (it != end && *it != '\r') {
@@ -86,12 +86,12 @@ reply::parse_error(std::vector<uint8_t>::const_iterator it,
     }
     // if we reached the end before we got to '\r' it's a parse error
     if (it == end) {
-        return parse_response(redis_value(), parse_error_code::eof, it);
+        return parse_response(redis::value(), parse_error_code::eof, it);
     }
     // consume the '\r\n'
     it += 2;
 
-    return parse_response(redis_value(redis::error(value)),
+    return parse_response(redis::value(redis::error(value)),
                           client_error_code::error, it);
 }
 
@@ -103,7 +103,7 @@ reply::parse_bulk_string(std::vector<uint8_t>::const_iterator it,
     std::error_code error;
 
     if (it == end) {
-        return parse_response(redis_value(), parse_error_code::eof, it);
+        return parse_response(redis::value(), parse_error_code::eof, it);
     }
 
     // parse header
@@ -113,26 +113,26 @@ reply::parse_bulk_string(std::vector<uint8_t>::const_iterator it,
 
     // if we reached the end before we got to '\r' it's a parse error
     if (it == end) {
-        return parse_response(redis_value(), parse_error_code::eof, it);
+        return parse_response(redis::value(), parse_error_code::eof, it);
     }
     // consume the '\r\n'
     it += 2;
     int64_t stringSize = 0;
     try {
         // determine size of bulk string
-        stringSize = stoll(header);
+        stringSize = stol(header);
     } catch (const std::invalid_argument& ex) {
-        return parse_response(redis_value(),
+        return parse_response(redis::value(),
                               parse_error_code::malformed_message, it);
     } catch (const std::out_of_range& ex) {
-        return parse_response(redis_value(),
+        return parse_response(redis::value(),
                               parse_error_code::malformed_message, it);
     }
 
     // if the size of the string is -1 for null string or 0 for empty
     // string, there is nothing to copy
     if (stringSize == -1) {
-        return parse_response(redis_value(), error, it);
+        return parse_response(redis::value(), error, it);
     }
 
     // copy the string
@@ -142,12 +142,12 @@ reply::parse_bulk_string(std::vector<uint8_t>::const_iterator it,
     try {
         copy(it, it + stringSize, value.begin());
     } catch (std::out_of_range& ex) {
-        return parse_response(redis_value(), parse_error_code::eof, it);
+        return parse_response(redis::value(), parse_error_code::eof, it);
     }
     // consume the bulk string and the '\r\n'
     it += stringSize + 2;
 
-    return parse_response(redis_value(value), error, it);
+    return parse_response(redis::value(value), error, it);
 }
 
 parse_response
@@ -158,7 +158,7 @@ reply::parse_integer(std::vector<uint8_t>::const_iterator it,
     std::error_code error;
 
     if (it == end) {
-        return parse_response(redis_value(), parse_error_code::eof, it);
+        return parse_response(redis::value(), parse_error_code::eof, it);
     }
 
     while (it != end && *it != '\r') {
@@ -166,16 +166,16 @@ reply::parse_integer(std::vector<uint8_t>::const_iterator it,
     }
     // if we reached the end before we got to '\r' it's a parse error
     if (it == end) {
-        return parse_response(redis_value(), parse_error_code::eof, it);
+        return parse_response(redis::value(), parse_error_code::eof, it);
     }
     // consume the '\r\n'
     it += 2;
 
     try {
         value = stoll(message);
-        return parse_response(redis_value(value), error, it);
+        return parse_response(redis::value(value), error, it);
     } catch (...) {
-        return parse_response(redis_value(), parse_error_code::out_of_range,
+        return parse_response(redis::value(), parse_error_code::out_of_range,
                               it);
     }
 }
@@ -188,7 +188,7 @@ reply::parse_array(std::vector<uint8_t>::const_iterator it,
     redis_array array;
 
     if (it == end) {
-        return parse_response(redis_value(), parse_error_code::eof, it);
+        return parse_response(redis::value(), parse_error_code::eof, it);
     }
 
     // parse the header
@@ -197,30 +197,30 @@ reply::parse_array(std::vector<uint8_t>::const_iterator it,
     }
     // return error if we're already at the end
     if (it == end) {
-        return parse_response(redis_value(), parse_error_code::eof, it);
+        return parse_response(redis::value(), parse_error_code::eof, it);
     }
     // consume the '\r\n'
     it += 2;
 
     // determine size of bulk string
-    int64_t arraySize = stoll(header);
+    int64_t arraySize = stol(header);
 
-    redis_value tempValue;
+    redis::value tempValue;
     for (int64_t i = 0; i < arraySize; i++) {
         if (it == end) {
-            return parse_response(redis_value(), parse_error_code::eof, it);
+            return parse_response(redis::value(), parse_error_code::eof, it);
         }
 
         std::tie(tempValue, error, it) = parse_reply(it, end);
         if (error) {
-            return parse_response(redis_value(), error, it);
+            return parse_response(redis::value(), error, it);
         }
         array.push_back(tempValue);
     }
     // we don't need to consume the '\r\n' because that's done by
     // parse_reply
 
-    return parse_response(redis_value(array), error, it);
+    return parse_response(redis::value(array), error, it);
 }
 
 } // namespace redis
