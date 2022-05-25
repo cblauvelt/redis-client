@@ -35,7 +35,7 @@ inline command hset(string key,
 
 inline command hsetnx(string key, std::string field, redis::value value) {
     return command(
-        std::vector<std::string>{"hsetnx", key, field, (string)value});
+        std::vector<std::string>{"HSETNX", key, field, (string)value});
 }
 
 inline command hget(string key, std::string field) {
