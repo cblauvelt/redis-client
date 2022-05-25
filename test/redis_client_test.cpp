@@ -10,6 +10,7 @@
 #include "redis/command.hpp"
 #include "redis/commands-hash.hpp"
 #include "redis/commands-json.hpp"
+#include "redis/commands-list.hpp"
 #include "redis/commands.hpp"
 
 #include "gmock/gmock.h"
@@ -73,7 +74,8 @@ void testForDouble(std::string cmd, redis::reply reply, double expected) {
     EXPECT_DOUBLE_EQ(optDouble.value(), expected);
 }
 
-void testForArray(std::string cmd, redis::reply reply, redis_array expected) {
+template <class T>
+void testForArray(std::string cmd, redis::reply reply, T expected) {
     testForError(cmd, reply);
 
     redis::value value = reply.value();
@@ -237,6 +239,94 @@ awaitable<void> run_pipeline_tests(asio::io_context& ctx) {
     co_return;
 }
 
+awaitable<void> test_list(client& client, int c,
+                          cpool::awaitable_latch& barrier) {
+    auto exec = co_await cpool::net::this_coro::executor;
+    string key = std::string("list") + std::to_string(c);
+    redis::reply reply;
+
+    auto test_arr = redis::redis_array{
+        redis::value("field1"), redis::value("42"),
+        redis::value("field2"), redis::value(string_to_vector("Hello")),
+        redis::value("field3"), redis::value(string_to_vector("World"))};
+
+    try {
+
+        reply = co_await client.send(redis::del(key));
+        for (int i = 0; i < 2; i++) {
+            reply =
+                co_await client.send(redis::rpush(key, std::string("field1")));
+            testForInt("RPUSH", reply, 1);
+            reply = co_await client.send(redis::rpush(key, test_arr));
+            testForInt("RPUSH", reply, 7);
+            reply =
+                co_await client.send(redis::lpush(key, std::string("field0")));
+            testForInt("LPUSH", reply, 8);
+
+            auto new_arr =
+                redis::redis_array{std::string("field0"), std::string("42")};
+            reply = co_await client.send(redis::lpush(key, new_arr));
+            testForInt("LPUSH", reply, 10);
+
+            reply = co_await client.send(redis::llen(key));
+            testForInt("LLEN", reply, 10);
+
+            reply = co_await client.send(redis::lrange(key, 0, 1));
+            testForArray("LRANGE", reply, std::views::reverse(new_arr));
+
+            reply = co_await client.send(redis::lpop(key, 2));
+            testForArray("LPOP", reply, std::views::reverse(new_arr));
+
+            reply = co_await client.send(redis::rpop(key));
+            testForString("RPOP", reply,
+                          redis::value(string_to_vector("World")));
+
+            reply = co_await client.send(redis::blpop(key));
+            new_arr =
+                redis::redis_array{redis::value(key), redis::value("field0")};
+            testForArray("BLPOP", reply, new_arr);
+
+            reply = co_await client.send(redis::brpop(key, 1));
+            new_arr =
+                redis::redis_array{redis::value(key), redis::value("field3")};
+            testForArray("RPOP", reply, new_arr);
+
+            reply = co_await client.send(redis::del(key));
+            testForInt("DEL", reply, 1);
+        }
+    } catch (const std::exception& ex) {
+        EXPECT_EQ(std::string(), ex.what());
+    }
+
+    barrier.count_down();
+    co_return;
+}
+
+awaitable<void> run_list_tests(asio::io_context& ctx) {
+    const int num_runners = 50;
+    auto exec = co_await cpool::net::this_coro::executor;
+    cpool::awaitable_latch barrier(exec, num_runners);
+    auto host = get_env_var("REDIS_HOST").value_or(DEFAULT_REDIS_HOST);
+
+    logMessage(redis::log_level::info, host);
+    client client(exec, host, 6379);
+    client.set_logging_handler(
+        std::bind(logMessage, std::placeholders::_1, std::placeholders::_2));
+
+    auto reply = co_await client.ping();
+    testForString("PING", reply, "PONG");
+    EXPECT_TRUE(client.running());
+
+    for (int i = 0; i < num_runners; i++) {
+        cpool::co_spawn(ctx, test_list(client, i, barrier), cpool::detached);
+    }
+
+    co_await barrier.wait();
+
+    ctx.stop();
+    co_return;
+}
+
 awaitable<void> test_hash(client& client, int c,
                           cpool::awaitable_latch& barrier) {
     auto exec = co_await cpool::net::this_coro::executor;
@@ -259,7 +349,7 @@ awaitable<void> test_hash(client& client, int c,
         redis::value(string_to_vector("World"))};
 
     try {
-        for (int i = 0; i < 1; i++) {
+        for (int i = 0; i < 2; i++) {
             reply = co_await client.send(
                 redis::hset(key, "field1", redis::value("42")));
             testForInt("HSET", reply, 1);
@@ -315,7 +405,7 @@ awaitable<void> test_hash(client& client, int c,
 }
 
 awaitable<void> run_hash_tests(asio::io_context& ctx) {
-    const int num_runners = 1;
+    const int num_runners = 50;
     auto exec = co_await cpool::net::this_coro::executor;
     cpool::awaitable_latch barrier(exec, num_runners);
     auto host = get_env_var("REDIS_HOST").value_or(DEFAULT_REDIS_HOST);
@@ -525,6 +615,14 @@ TEST(Redis, PipelineTest) {
     asio::io_context ctx(1);
 
     cpool::co_spawn(ctx, run_pipeline_tests(std::ref(ctx)), cpool::detached);
+
+    ctx.run();
+}
+
+TEST(Redis, ListTest) {
+    asio::io_context ctx(1);
+
+    cpool::co_spawn(ctx, run_list_tests(std::ref(ctx)), cpool::detached);
 
     ctx.run();
 }
