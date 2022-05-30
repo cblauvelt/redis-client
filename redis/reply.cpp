@@ -27,7 +27,6 @@ parse_response
 reply::parse_reply(std::vector<uint8_t>::const_iterator it,
                    const std::vector<uint8_t>::const_iterator end) {
     redis::value value;
-    std::error_code error;
 
     if (it == end) {
         return parse_response(redis::value(), parse_error_code::eof, end);
@@ -49,7 +48,7 @@ reply::parse_reply(std::vector<uint8_t>::const_iterator it,
         break;
     }
 
-    return parse_response(redis::value(), error, end);
+    return parse_response(redis::value(), std::error_code{}, end);
 }
 
 parse_response
@@ -100,7 +99,6 @@ reply::parse_bulk_string(std::vector<uint8_t>::const_iterator it,
                          const std::vector<uint8_t>::const_iterator end) {
     string header;
     std::vector<uint8_t> value;
-    std::error_code error;
 
     if (it == end) {
         return parse_response(redis::value(), parse_error_code::eof, it);
@@ -132,7 +130,7 @@ reply::parse_bulk_string(std::vector<uint8_t>::const_iterator it,
     // if the size of the string is -1 for null string or 0 for empty
     // string, there is nothing to copy
     if (stringSize == -1) {
-        return parse_response(redis::value(), error, it);
+        return parse_response(redis::value(), std::error_code{}, it);
     }
 
     // copy the string
@@ -147,15 +145,13 @@ reply::parse_bulk_string(std::vector<uint8_t>::const_iterator it,
     // consume the bulk string and the '\r\n'
     it += stringSize + 2;
 
-    return parse_response(redis::value(value), error, it);
+    return parse_response(redis::value(value), std::error_code{}, it);
 }
 
 parse_response
 reply::parse_integer(std::vector<uint8_t>::const_iterator it,
                      const std::vector<uint8_t>::const_iterator end) {
     string message;
-    int value;
-    std::error_code error;
 
     if (it == end) {
         return parse_response(redis::value(), parse_error_code::eof, it);
@@ -172,8 +168,8 @@ reply::parse_integer(std::vector<uint8_t>::const_iterator it,
     it += 2;
 
     try {
-        value = stoll(message);
-        return parse_response(redis::value(value), error, it);
+        int64_t value = stol(message);
+        return parse_response(redis::value(value), std::error_code{}, it);
     } catch (...) {
         return parse_response(redis::value(), parse_error_code::out_of_range,
                               it);
