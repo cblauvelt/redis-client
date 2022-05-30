@@ -136,12 +136,11 @@ awaitable<replies> client::send(cpool::tcp_connection* connection,
     }
 
     redis::replies replies;
-    redis::buffer_t::const_iterator it = read_buffer.cbegin();
-    size_t bytes_remaining = bytes_read;
-    for (int i = 0; i < commands.size(); i++) {
+    auto it = read_buffer.cbegin();
+    auto end = read_buffer.cbegin() + bytes_read;
+    while (it != end) {
         redis::reply reply;
-        it = reply.load_data(it, it + bytes_remaining);
-        bytes_remaining = it - read_buffer.cbegin();
+        it = reply.load_data(it, end);
         replies.push_back(reply);
     }
 

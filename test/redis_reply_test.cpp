@@ -111,12 +111,12 @@ TEST(RedisReply, Integer) {
     redis::reply reply2;
     auto it = reply2.load_data(inputBuffer.begin(), inputBuffer.end());
 
-    // // Test first constructor
+    // Test first constructor
     EXPECT_FALSE(reply1.error());
     int result1 = reply1.value();
     EXPECT_EQ(result1, 1000);
 
-    // // Test second constructor
+    // Test second constructor
     EXPECT_FALSE(reply2.error());
     int result2 = reply2.value();
     EXPECT_EQ(result2, 1000);
@@ -131,7 +131,7 @@ TEST(RedisReply, Array) {
     redis::reply reply2;
     auto it = reply2.load_data(inputBuffer.begin(), inputBuffer.end());
 
-    // // Test first constructor
+    // Test first constructor
     EXPECT_FALSE(reply1.error());
     redis::redis_array result1 = reply1.value();
     EXPECT_EQ(result1.size(), 3);
@@ -139,7 +139,7 @@ TEST(RedisReply, Array) {
     EXPECT_EQ(result1.at(1).type(), redis::redis_type::nil);
     EXPECT_EQ((string)(result1.at(2)), "bar");
 
-    // // Test second constructor
+    // Test second constructor
     EXPECT_FALSE(reply2.error());
     redis::redis_array result2 = reply2.value();
     EXPECT_EQ(result2.size(), 3);
@@ -175,6 +175,45 @@ TEST(RedisReply, PingResponseArray) {
     EXPECT_EQ(result2.at(1).type(), expected.at(1).type());
     EXPECT_EQ((string)(result2.at(1)), (string)(expected.at(1)));
     EXPECT_EQ(it, inputBuffer.end());
+}
+
+TEST(RedisReply, Pipeline) {
+    auto inputBuffer =
+        std::vector<uint8_t>{':', '1',  '0',  '2', '4', '\r', '\n', '$',
+                             '2', '\r', '\n', '4', '2', '\r', '\n'};
+
+    redis::reply reply1;
+    auto it = reply1.load_data(inputBuffer.cbegin(), inputBuffer.cend());
+
+    // Test first reply
+    EXPECT_FALSE(reply1.error());
+    int result1 = reply1.value();
+    EXPECT_EQ(result1, 1024);
+    EXPECT_EQ(it, inputBuffer.cbegin() + 7);
+
+    redis::reply reply2;
+    it = reply2.load_data(it, inputBuffer.cend());
+
+    // Test second reply
+    EXPECT_FALSE(reply2.error());
+    string result2 = reply2.value();
+    EXPECT_EQ(result2, "42");
+    EXPECT_EQ(it, inputBuffer.cend());
+
+    // test null strings
+    inputBuffer = std::vector<uint8_t>{':',  '1', '0', '2', '4',  '\r',
+                                       '\n', '$', '-', '1', '\r', '\n'};
+    it = reply1.load_data(inputBuffer.cbegin(), inputBuffer.cend());
+    // Test first reply
+    EXPECT_FALSE(reply1.error());
+    result1 = reply1.value();
+    EXPECT_EQ(result1, 1024);
+    EXPECT_EQ(it, inputBuffer.cbegin() + 7);
+
+    it = reply2.load_data(it, inputBuffer.cend());
+
+    EXPECT_FALSE(reply2.error());
+    EXPECT_EQ(reply2.value().type(), redis::redis_type::nil);
 }
 
 } // namespace
