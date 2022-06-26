@@ -11,6 +11,7 @@
 #include "redis/commands-hash.hpp"
 #include "redis/commands-json.hpp"
 #include "redis/commands-list.hpp"
+#include "redis/commands-ttl.hpp"
 #include "redis/commands.hpp"
 
 #include "gmock/gmock.h"
@@ -50,8 +51,44 @@ void testForInt(std::string cmd, redis::reply reply, int expected) {
 
     redis::value value = reply.value();
     auto optInt = value.as<int>();
-    EXPECT_TRUE(optInt.has_value());
-    EXPECT_EQ(optInt.value(), expected);
+    EXPECT_TRUE(optInt.has_value()) << cmd;
+    EXPECT_EQ(optInt.value(), expected) << cmd;
+}
+
+void testForGE(std::string cmd, redis::reply reply, int expected) {
+    testForError(cmd, reply);
+
+    redis::value value = reply.value();
+    auto optInt = value.as<int>();
+    EXPECT_TRUE(optInt.has_value()) << cmd;
+    EXPECT_GE(optInt.value(), expected) << cmd;
+}
+
+void testForGT(std::string cmd, redis::reply reply, int expected) {
+    testForError(cmd, reply);
+
+    redis::value value = reply.value();
+    auto optInt = value.as<int>();
+    EXPECT_TRUE(optInt.has_value()) << cmd;
+    EXPECT_GT(optInt.value(), expected) << cmd;
+}
+
+void testForLE(std::string cmd, redis::reply reply, int expected) {
+    testForError(cmd, reply);
+
+    redis::value value = reply.value();
+    auto optInt = value.as<int>();
+    EXPECT_TRUE(optInt.has_value()) << cmd;
+    EXPECT_LE(optInt.value(), expected) << cmd;
+}
+
+void testForLT(std::string cmd, redis::reply reply, int expected) {
+    testForError(cmd, reply);
+
+    redis::value value = reply.value();
+    auto optInt = value.as<int>();
+    EXPECT_TRUE(optInt.has_value()) << cmd;
+    EXPECT_LT(optInt.value(), expected) << cmd;
 }
 
 void testForFloat(std::string cmd, redis::reply reply, float expected) {
@@ -60,8 +97,8 @@ void testForFloat(std::string cmd, redis::reply reply, float expected) {
     redis::value value = reply.value();
     auto optFloat = value.as<float>();
 
-    EXPECT_TRUE(optFloat.has_value());
-    EXPECT_FLOAT_EQ(optFloat.value(), expected);
+    EXPECT_TRUE(optFloat.has_value()) << cmd;
+    EXPECT_FLOAT_EQ(optFloat.value(), expected) << cmd;
 }
 
 void testForDouble(std::string cmd, redis::reply reply, double expected) {
@@ -70,8 +107,8 @@ void testForDouble(std::string cmd, redis::reply reply, double expected) {
     redis::value value = reply.value();
     auto optDouble = value.as<double>();
 
-    EXPECT_TRUE(optDouble.has_value());
-    EXPECT_DOUBLE_EQ(optDouble.value(), expected);
+    EXPECT_TRUE(optDouble.has_value()) << cmd;
+    EXPECT_DOUBLE_EQ(optDouble.value(), expected) << cmd;
 }
 
 template <class T>
@@ -82,9 +119,9 @@ void testForArray(std::string cmd, redis::reply reply, T expected) {
     auto optArray = value.as<redis_array>();
     redis::redis_array array;
 
-    EXPECT_TRUE(optArray.has_value());
-    EXPECT_NO_THROW(array = optArray.value());
-    EXPECT_EQ(array.size(), expected.size());
+    EXPECT_TRUE(optArray.has_value()) << cmd;
+    EXPECT_NO_THROW(array = optArray.value()) << cmd;
+    EXPECT_EQ(array.size(), expected.size()) << cmd;
     for (int i = 0; i < array.size(); i++) {
         // EXPECT_EQ(array[i].type(), expected[i].type());
         EXPECT_EQ(array[i], expected[i]);
@@ -180,6 +217,84 @@ awaitable<void> run_tests(asio::io_context& ctx) {
 
     for (int i = 0; i < num_runners; i++) {
         cpool::co_spawn(ctx, test_basic(client, i, barrier), cpool::detached);
+    }
+
+    co_await barrier.wait();
+
+    ctx.stop();
+    co_return;
+}
+
+awaitable<void> test_ttl(client& client, int c,
+                         cpool::awaitable_latch& barrier) {
+    auto exec = co_await cpool::net::this_coro::executor;
+    string key = std::string("ttl") + std::to_string(c);
+    redis::reply reply;
+    const auto time_delay_sec = 10s;
+
+    reply = co_await client.send(redis::ttl(key));
+    testForInt("TTL", reply, -2);
+
+    reply = co_await client.send(redis::expire(key, time_delay_sec));
+    testForInt("EXPIRE", reply, 0);
+
+    reply = co_await client.send(redis::set(key, "42"));
+    testForSuccess("SET", reply);
+
+    reply = co_await client.send(redis::ttl(key));
+    testForInt("TTL", reply, -1);
+
+    reply = co_await client.send(redis::expire(key, time_delay_sec));
+    testForInt("EXPIRE", reply, 1);
+
+    reply = co_await client.send(redis::ttl(key));
+    testForLE("TTL", reply, time_delay_sec.count());
+
+    reply = co_await client.send(redis::persist(key));
+    testForInt("PERSIST", reply, 1);
+
+    reply = co_await client.send(redis::persist(key));
+    testForInt("PERSIST", reply, 0);
+
+    reply = co_await client.send(del(key));
+    testForSuccess("DEL", reply);
+
+    reply = co_await client.send(redis::pexpire(key, time_delay_sec));
+    testForInt("PEXPIRE", reply, 0);
+
+    reply = co_await client.send(redis::set(key, "42"));
+    testForSuccess("SET", reply);
+
+    reply = co_await client.send(redis::pexpire(key, time_delay_sec));
+    testForInt("PEXPIRE", reply, 1);
+
+    reply = co_await client.send(redis::pttl(key));
+    testForLE("PTTL", reply, time_delay_sec.count() * 1000);
+
+    reply = co_await client.send(del(key));
+    testForSuccess("DEL", reply);
+
+    barrier.count_down();
+    co_return;
+}
+
+awaitable<void> run_ttl_tests(asio::io_context& ctx) {
+    const int num_runners = 1;
+    auto exec = co_await cpool::net::this_coro::executor;
+    cpool::awaitable_latch barrier(exec, num_runners);
+    auto host = get_env_var("REDIS_HOST").value_or(DEFAULT_REDIS_HOST);
+
+    logMessage(redis::log_level::info, host);
+    client client(exec, host, 6379);
+    client.set_logging_handler(
+        std::bind(logMessage, std::placeholders::_1, std::placeholders::_2));
+
+    auto reply = co_await client.ping();
+    testForString("PING", reply, "PONG");
+    EXPECT_TRUE(client.running());
+
+    for (int i = 0; i < num_runners; i++) {
+        cpool::co_spawn(ctx, test_ttl(client, i, barrier), cpool::detached);
     }
 
     co_await barrier.wait();
@@ -607,6 +722,14 @@ TEST(Redis, ClientTest) {
     asio::io_context ctx(1);
 
     cpool::co_spawn(ctx, run_tests(std::ref(ctx)), cpool::detached);
+
+    ctx.run();
+}
+
+TEST(Redis, TtlTest) {
+    asio::io_context ctx(1);
+
+    cpool::co_spawn(ctx, run_ttl_tests(std::ref(ctx)), cpool::detached);
 
     ctx.run();
 }

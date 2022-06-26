@@ -21,10 +21,12 @@ class RedisClientConan(ConanFile):
                        "conanfile.py", "redis/*", "test/*"]
     generators = "cmake"
     settings = "os", "arch", "compiler", "build_type"
-    requires = "cpool/main_6c87e8e612ea", "boost/1.78.0", "openssl/1.1.1m", "fmt/8.1.1"
+    requires = "cpool/main_23c5e65a0f9b", "boost/1.78.0", "openssl/1.1.1m", "fmt/8.1.1"
     build_requires = "gtest/cci.20210126"
-    options = {"cxx_standard": [20], "build_testing": [True, False], "trace_logging": [True, False]}
-    default_options = {"cxx_standard": 20, "build_testing": True, "trace_logging": False}
+    options = {"cxx_standard": [20], "build_testing": [
+        True, False], "trace_logging": [True, False]}
+    default_options = {"cxx_standard": 20,
+                       "build_testing": True, "trace_logging": False}
 
     def config_options(self):
         if self.settings.os == "Windows":
