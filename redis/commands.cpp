@@ -14,14 +14,6 @@ command set(string key, string value, parameters params) {
     return command(commandString);
 }
 
-command del(string key) {
-    return command(std::vector<std::string>{"DEL", key});
-}
-
-command exists(string key) {
-    return command(std::vector<std::string>{"EXISTS", key});
-}
-
 command incr(string key) {
     return command(std::vector<std::string>{"INCR", key});
 }

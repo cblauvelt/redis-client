@@ -32,7 +32,7 @@ void testForError(std::string cmd, const redis::reply& reply) {
     }
 }
 
-void testForString(std::string cmd, redis::reply reply, string expected) {
+void testForValue(std::string cmd, redis::reply reply, string expected) {
     testForError(cmd, reply);
 
     auto optString = reply.value().as<string>();
@@ -40,7 +40,7 @@ void testForString(std::string cmd, redis::reply reply, string expected) {
     EXPECT_EQ(optString.value(), expected);
 }
 
-void testForInt(std::string cmd, redis::reply reply, int expected) {
+void testForValue(std::string cmd, redis::reply reply, int expected) {
     testForError(cmd, reply);
 
     value value = reply.value();
@@ -49,7 +49,7 @@ void testForInt(std::string cmd, redis::reply reply, int expected) {
     EXPECT_EQ(optInt.value(), expected);
 }
 
-void testForFloat(std::string cmd, redis::reply reply, float expected) {
+void testForValue(std::string cmd, redis::reply reply, float expected) {
     testForError(cmd, reply);
 
     value value = reply.value();
@@ -59,7 +59,7 @@ void testForFloat(std::string cmd, redis::reply reply, float expected) {
     EXPECT_FLOAT_EQ(optFloat.value(), expected);
 }
 
-void testForDouble(std::string cmd, redis::reply reply, double expected) {
+void testForValue(std::string cmd, redis::reply reply, double expected) {
     testForError(cmd, reply);
 
     value value = reply.value();
@@ -134,7 +134,7 @@ void logMessage(log_level target, log_level level, string_view message) {
 awaitable<void> publish_messages(client& client, std::string channel,
                                  int max_messages) {
     auto reply = co_await client.ping();
-    testForString("PING", reply, "PONG");
+    testForValue("PING", reply, "PONG");
     EXPECT_TRUE(client.running());
 
     for (int i = 0; i < max_messages; i++) {
@@ -161,7 +161,7 @@ awaitable<void> run_tests(asio::io_context& ctx) {
     auto error = co_await subscriber.ping();
     EXPECT_FALSE(error) << error.message();
     auto reply = co_await subscriber.read();
-    testForString("PING", reply, "PONG");
+    testForValue("PING", reply, "PONG");
 
     EXPECT_TRUE(subscriber.running());
 

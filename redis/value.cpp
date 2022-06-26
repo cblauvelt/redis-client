@@ -1,6 +1,7 @@
 #include "redis/value.hpp"
 
 #include <algorithm>
+#include <stdexcept>
 
 namespace redis {
 
@@ -94,9 +95,90 @@ bool value::operator==(const value& rhs) const {
 }
 
 bool value::operator!=(const value& rhs) const { return !(*this == rhs); }
-// bool value::operator!=(const value& rhs) const { return (type_ != rhs.type_);
-// }
+
+bool value::operator<(const value& rhs) const {
+    if (type_ != rhs.type_) {
+        return (type_ < rhs.type_);
+    }
+
+    switch (type_) {
+    case redis_type::nil:
+        return false;
+
+    case redis_type::simple_string:
+        return (std::get<std::string>(value_) <
+                std::get<std::string>(rhs.value_));
+
+    case redis_type::error:
+        return (std::get<redis::error>(value_).what() <
+                std::get<redis::error>(rhs.value_).what());
+
+    case redis_type::integer:
+        return (std::get<int64_t>(value_) < std::get<int64_t>(rhs.value_));
+
+    case redis_type::bulk_string:
+        return (std::get<redis::bulk_string>(value_) <
+                std::get<redis::bulk_string>(rhs.value_));
+
+    case redis_type::array:
+        return (std::get<redis_array>(value_) <
+                std::get<redis_array>(rhs.value_));
+
+    default:
+        throw std::out_of_range("redis value type is not supported");
+    }
+}
 
 redis_type value::type() const { return type_; }
+
+ostream& operator<<(ostream& os, const redis::value& val) {
+    redis_array arrVal;
+
+    switch (val.type()) {
+    case redis_type::nil:
+        os << "(nil)";
+        break;
+
+    case redis_type::simple_string:
+        os << (std::string)val;
+        break;
+
+    case redis_type::error:
+        os << ((error)val).what();
+        break;
+
+    case redis_type::integer:
+        os << (int64_t)val;
+        break;
+
+    case redis_type::bulk_string:
+        os << '[' << absl::StrJoin((redis::bulk_string)val, ",") << ']';
+        break;
+
+    case redis_type::array:
+        arrVal = (redis_array)val;
+        if (arrVal.empty()) {
+            os << "[]";
+            break;
+        }
+
+        {
+            auto arrIt = arrVal.cbegin();
+            os << '[' << *arrIt++;
+            while (arrIt != arrVal.cend()) {
+                os << *arrIt++;
+            }
+            os << ']';
+        }
+
+        break;
+
+    default:
+        os << "(unknown type)";
+        break;
+    }
+
+    return os;
+}
 
 } // namespace redis

@@ -6,10 +6,13 @@
 #include <cstdint>
 #include <map>
 #include <optional>
+#include <ostream>
 #include <string>
 #include <system_error>
 #include <variant>
 #include <vector>
+
+#include <absl/strings/str_join.h>
 
 #include "redis/error.hpp"
 #include "redis/helper_functions.hpp"
@@ -22,6 +25,7 @@ using bulk_string = std::vector<uint8_t>;
 using redis_array = std::vector<redis::value>;
 using hash = std::map<std::string, redis::value>;
 using string = std::string;
+using ostream = std::ostream;
 
 /**
  * @brief Used to define what is held by a value.
@@ -91,6 +95,12 @@ class value {
     value(redis_array val);
 
     /**
+     * @brief Creates a value that is an array of redis_values
+     * @param val The array to hold within the value
+     */
+    template <typename T> value(std::vector<T> vals);
+
+    /**
      * @brief Creates a value that is hash of redis_values
      * @param val The hash to hold within the value
      */
@@ -107,6 +117,13 @@ class value {
      * @returns bool true if either the type or the value are different.
      */
     bool operator!=(const value& rhs) const;
+
+    /**
+     * @brief LessThan operator for value.
+     * @returns bool true if the type is a lower value. If types are equal
+     * evaluates internal value.
+     */
+    bool operator<(const value& rhs) const;
 
     /**
      * @brief A template function that converts the value into an optional
@@ -131,6 +148,12 @@ class value {
      */
     redis_type type() const;
 
+    /**
+     * @brief Output the value to ostream such as cout or cerr
+     *
+     */
+    friend ostream& operator<<(ostream& os, const value& val);
+
   private:
     std::variant<std::nullptr_t, std::string, error, int64_t, bulk_string,
                  redis_array>
@@ -138,6 +161,18 @@ class value {
 
     redis_type type_;
 };
+
+template <typename T>
+value::value(std::vector<T> vals)
+    : value_()
+    , type_(redis_type::array) {
+    redis_array tempArray;
+    for (auto& val : vals) {
+        tempArray.push_back(std::move(val));
+    }
+
+    value_ = std::move(tempArray);
+}
 
 template <typename T> value::operator T() const {
     std::optional<T> retVal = as<T>();

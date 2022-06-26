@@ -19,6 +19,8 @@ using logging_handler =
     std::function<void(log_level level, std::string_view message)>;
 /// Additional key-value parameters that can be added onto some commands.
 using parameters = std::vector<std::string>;
+/// Sets of keys
+using strings = std::vector<std::string>;
 
 using buffer_t = std::vector<uint8_t>;
 

@@ -13,9 +13,17 @@ command get(string key);
 
 command set(string key, string value, parameters params = parameters());
 
-command del(string key);
+template <typename... Args> command del(Args... keys) {
+    auto commandStrings = std::vector<std::string>{"DEL"};
+    (commandStrings.push_back(std::forward<Args>(keys)), ...);
+    return command(std::move(commandStrings));
+}
 
-command exists(string key);
+template <typename... Args> command exists(Args... keys) {
+    auto commandStrings = std::vector<std::string>{"EXISTS"};
+    (commandStrings.push_back(std::forward<Args>(keys)), ...);
+    return command(std::move(commandStrings));
+}
 
 command incr(string key);
 
