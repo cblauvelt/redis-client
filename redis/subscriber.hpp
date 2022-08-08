@@ -4,9 +4,11 @@
 #include <string>
 
 #include <boost/asio/experimental/channel.hpp>
-#include <cpool/condition_variable.hpp>
+#include <cpool/awaitable_latch.hpp>
+#include <cpool/connection_pool.hpp>
 #include <cpool/tcp_connection.hpp>
 
+#include "redis/client_config.hpp"
 #include "redis/command.hpp"
 #include "redis/errors.hpp"
 #include "redis/helper_functions.hpp"
@@ -33,6 +35,13 @@ class redis_subscriber {
      * @param connection The connection on which the subscribe request was made.
      */
     redis_subscriber(std::unique_ptr<cpool::tcp_connection> connection);
+
+    /**
+     * @brief Creates a subscriber using default properties.
+     * @param exec The Asio executor to use for event handling.
+     * @param config The configuration object
+     */
+    redis_subscriber(cpool::net::any_io_executor exec, client_config config);
 
     /**
      * @brief Creates a redis_subscriber using default properties.
@@ -133,6 +142,21 @@ class redis_subscriber {
     parse_buffer(buffer_t::const_iterator begin, buffer_t::const_iterator end);
 
     /**
+     * @brief Creates the connection object
+     *
+     * @return std::unique_ptr<cpool::tcp_connection>
+     */
+    std::unique_ptr<cpool::tcp_connection> connection_ctor();
+
+    [[nodiscard]] awaitable<cpool::error>
+    on_connection_state_change(cpool::tcp_connection* conn,
+                               const cpool::client_connection_state state);
+
+    [[nodiscard]] awaitable<cpool::error>
+    auth_client(cpool::tcp_connection* conn,
+                const cpool::client_connection_state state);
+
+    /**
      * @brief Logs the message using the on_log_ event hander.
      * @param level The level of logging @see log_level
      * @param message The message to be logged.
@@ -140,6 +164,12 @@ class redis_subscriber {
     void log_message(log_level level, string_view message);
 
   private:
+    /// The io_service that is used to schedule asynchronous events.
+    cpool::net::any_io_executor exec_;
+
+    /// The configuration options of the client.
+    client_config config_;
+
     /// The connection to the server. @see cpool::tcp_connection.
     redis_subscriber_connection connection_;
 
@@ -152,8 +182,7 @@ class redis_subscriber {
     logging_handler on_log_;
 
     /// track number of detached tasks
-    cpool::condition_variable tasks_cv_;
-    std::atomic_int running_tasks_;
+    cpool::awaitable_latch latch_;
     std::atomic_bool read_messages_;
 };
 

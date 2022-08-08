@@ -1,16 +1,16 @@
-version: '3'
+version: "3"
 services:
   redis:
-    image: redislabs/rejson:2.0.6
+    image: redis/redis-stack:6.2.2-v5
     container_name: "redis"
     restart: always
     ports:
       - "6379:6379"
   redis-pass:
-    image: bitnami/redis:6.2.6
+    image: redis/redis-stack:6.2.2-v5
     container_name: "redis-pass"
     restart: always
     environment:
-      - "REDIS_PASSWORD=s3cret"
+      - "REDIS_ARGS=--requirepass s3cret"
     ports:
       - "6380:6379"

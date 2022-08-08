@@ -15,6 +15,8 @@
 #include "redis/commands-ttl.hpp"
 #include "redis/commands.hpp"
 
+#include "test_functions.hpp"
+
 #include "gmock/gmock.h"
 #include "gtest/gtest.h"
 
@@ -24,191 +26,44 @@ using namespace redis;
 
 const std::string DEFAULT_REDIS_HOST = "host.docker.internal";
 const std::string DEFAULT_REDIS_PORT = "6379";
+const log_level logLevel = log_level::debug;
 
 std::optional<std::string> get_env_var(std::string const& key) {
     char* val = getenv(key.c_str());
     return (val == NULL) ? std::nullopt : std::optional(std::string(val));
 }
 
-void testForError(std::string cmd, const redis::reply& reply) {
-    EXPECT_FALSE(reply.error()) << cmd;
-    if (reply.error() == client_error_code::error) {
-        EXPECT_EQ(reply.value().as<redis::error>().value().what(),
-                  std::string())
-            << cmd;
+void logMessage(log_level target, log_level level, string_view message) {
+    if (target > level) {
+        return;
     }
-}
 
-void testForValue(std::string cmd, redis::reply reply, redis::value expected) {
-    testForError(cmd, reply);
+    std::string levelString;
 
-    EXPECT_EQ(reply.value(), expected) << "Expected string: " << expected;
-}
-
-void testForValue(std::string cmd, redis::reply reply, const char* expected) {
-    testForValue(cmd, reply, std::string(expected));
-}
-
-void testForValue(std::string cmd, redis::reply reply, string expected) {
-    testForError(cmd, reply);
-
-    auto optString = reply.value().as<string>();
-    EXPECT_TRUE(optString.has_value()) << "Expected string: " << expected;
-    EXPECT_EQ(optString.value(), expected) << "Expected string: " << expected;
-}
-
-void testForValue(std::string cmd, redis::reply reply, int expected) {
-    testForError(cmd, reply);
-
-    redis::value value = reply.value();
-    auto optInt = value.as<int>();
-    EXPECT_TRUE(optInt.has_value()) << cmd;
-    EXPECT_EQ(optInt.value(), expected) << cmd;
-}
-
-void testForValue(std::string cmd, redis::reply reply, float expected) {
-    testForError(cmd, reply);
-
-    redis::value value = reply.value();
-    auto optFloat = value.as<float>();
-
-    EXPECT_TRUE(optFloat.has_value()) << cmd;
-    EXPECT_FLOAT_EQ(optFloat.value(), expected) << cmd;
-}
-
-void testForValue(std::string cmd, redis::reply reply, double expected) {
-    testForError(cmd, reply);
-
-    redis::value value = reply.value();
-    auto optDouble = value.as<double>();
-
-    EXPECT_TRUE(optDouble.has_value()) << cmd;
-    EXPECT_DOUBLE_EQ(optDouble.value(), expected) << cmd;
-}
-
-void testForValue(std::string cmd, redis::reply reply, redis::hash expected) {
-    testForError(cmd, reply);
-
-    redis::value value = reply.value();
-    auto optHash = value.as<redis::hash>();
-    redis::hash hash;
-
-    EXPECT_TRUE(optHash.has_value());
-    EXPECT_NO_THROW(hash = optHash.value());
-    EXPECT_EQ(hash.size(), expected.size());
-
-    for (auto [key, value] : hash) {
-        EXPECT_EQ(value, expected[key]);
+    switch (level) {
+    case log_level::trace:
+        levelString = "Trace";
+        break;
+    case log_level::debug:
+        levelString = "Debug";
+        break;
+    case log_level::info:
+        levelString = "Info";
+        break;
+    case log_level::warn:
+        levelString = "Warn";
+        break;
+    case log_level::error:
+        levelString = "Error";
+        break;
+    case log_level::critical:
+        levelString = "Critical";
+        break;
+    default:
+        break;
     }
-}
-
-void testForValue(std::string cmd, redis::reply reply, bool expected) {
-    testForError(cmd, reply);
-
-    redis::value value = reply.value();
-
-    EXPECT_EQ(value.as<bool>().value(), expected) << cmd;
-}
-
-void testForGE(std::string cmd, redis::reply reply, int expected) {
-    testForError(cmd, reply);
-
-    redis::value value = reply.value();
-    auto optInt = value.as<int>();
-    EXPECT_TRUE(optInt.has_value()) << cmd;
-    EXPECT_GE(optInt.value(), expected) << cmd;
-}
-
-void testForGT(std::string cmd, redis::reply reply, int expected) {
-    testForError(cmd, reply);
-
-    redis::value value = reply.value();
-    auto optInt = value.as<int>();
-    EXPECT_TRUE(optInt.has_value()) << cmd;
-    EXPECT_GT(optInt.value(), expected) << cmd;
-}
-
-void testForLE(std::string cmd, redis::reply reply, int expected) {
-    testForError(cmd, reply);
-
-    redis::value value = reply.value();
-    auto optInt = value.as<int>();
-    EXPECT_TRUE(optInt.has_value()) << cmd;
-    EXPECT_LE(optInt.value(), expected) << cmd;
-}
-
-void testForLT(std::string cmd, redis::reply reply, int expected) {
-    testForError(cmd, reply);
-
-    redis::value value = reply.value();
-    auto optInt = value.as<int>();
-    EXPECT_TRUE(optInt.has_value()) << cmd;
-    EXPECT_LT(optInt.value(), expected) << cmd;
-}
-
-template <class T>
-void testForArray(std::string cmd, redis::reply reply, T expected) {
-    testForError(cmd, reply);
-
-    redis::value value = reply.value();
-    auto optArray = value.as<redis_array>();
-    redis::redis_array array;
-
-    EXPECT_TRUE(optArray.has_value()) << cmd;
-    EXPECT_NO_THROW(array = optArray.value()) << cmd;
-    EXPECT_EQ(array.size(), expected.size()) << cmd;
-    for (int i = 0; i < array.size(); i++) {
-        // EXPECT_EQ(array[i].type(), expected[i].type());
-        EXPECT_EQ(array[i], expected[i]);
-    }
-}
-
-template <class T>
-void testForSortedArray(std::string cmd, redis::reply reply, T expected) {
-    testForError(cmd, reply);
-
-    redis::value value = reply.value();
-    auto optArray = value.as<redis_array>();
-    redis::redis_array array;
-
-    EXPECT_TRUE(optArray.has_value()) << cmd;
-    EXPECT_NO_THROW(array = optArray.value()) << cmd;
-    EXPECT_EQ(array.size(), expected.size()) << cmd;
-    std::sort(array.begin(), array.end());
-    for (int i = 0; i < array.size(); i++) {
-        // EXPECT_EQ(array[i].type(), expected[i].type());
-        EXPECT_EQ(array[i], expected[i]);
-    }
-}
-
-void testForArraySize(std::string cmd, redis::reply reply, size_t expected) {
-    testForError(cmd, reply);
-
-    redis::value value = reply.value();
-    auto optArray = value.as<redis_array>();
-    redis::redis_array array;
-
-    EXPECT_TRUE(optArray.has_value()) << cmd;
-    EXPECT_NO_THROW(array = optArray.value()) << cmd;
-    EXPECT_EQ(array.size(), expected) << cmd;
-}
-
-void testForSuccess(std::string cmd, redis::reply reply) {
-    testForError(cmd, reply);
-
-    redis::value value = reply.value();
-
-    EXPECT_TRUE(value.as<bool>().value_or(false)) << cmd;
-}
-
-void testForType(std::string cmd, redis::reply reply, redis::redis_type type) {
-    testForError(cmd, reply);
-
-    EXPECT_EQ(reply.value().type(), type);
-}
-
-void logMessage(log_level level, string_view message) {
-    cout << message << endl;
+    std::cout << fmt::format("[Redis] [{0}] {1}", levelString, message)
+              << std::endl;
 }
 
 awaitable<void> test_basic(client& client, int c,
@@ -252,10 +107,10 @@ awaitable<void> run_basic_tests(asio::io_context& ctx) {
     cpool::awaitable_latch barrier(exec, num_runners);
     auto host = get_env_var("REDIS_HOST").value_or(DEFAULT_REDIS_HOST);
 
-    logMessage(redis::log_level::info, host);
+    logMessage(logLevel, redis::log_level::info, host);
     client client(exec, host, 6379);
-    client.set_logging_handler(
-        std::bind(logMessage, std::placeholders::_1, std::placeholders::_2));
+    client.set_logging_handler(std::bind(
+        logMessage, logLevel, std::placeholders::_1, std::placeholders::_2));
 
     auto reply = co_await client.ping();
     testForValue("PING", reply, "PONG");
@@ -330,10 +185,10 @@ awaitable<void> run_ttl_tests(asio::io_context& ctx) {
     cpool::awaitable_latch barrier(exec, num_runners);
     auto host = get_env_var("REDIS_HOST").value_or(DEFAULT_REDIS_HOST);
 
-    logMessage(redis::log_level::info, host);
+    logMessage(logLevel, redis::log_level::info, host);
     client client(exec, host, 6379);
-    client.set_logging_handler(
-        std::bind(logMessage, std::placeholders::_1, std::placeholders::_2));
+    client.set_logging_handler(std::bind(
+        logMessage, logLevel, std::placeholders::_1, std::placeholders::_2));
 
     auto reply = co_await client.ping();
     testForValue("PING", reply, "PONG");
@@ -380,10 +235,10 @@ awaitable<void> run_pipeline_tests(asio::io_context& ctx) {
     cpool::awaitable_latch barrier(exec, num_runners);
     auto host = get_env_var("REDIS_HOST").value_or(DEFAULT_REDIS_HOST);
 
-    logMessage(redis::log_level::info, host);
+    logMessage(logLevel, redis::log_level::info, host);
     client client(exec, host, 6379);
-    client.set_logging_handler(
-        std::bind(logMessage, std::placeholders::_1, std::placeholders::_2));
+    client.set_logging_handler(std::bind(
+        logMessage, logLevel, std::placeholders::_1, std::placeholders::_2));
 
     auto reply = co_await client.ping();
     testForValue("PING", reply, "PONG");
@@ -469,10 +324,10 @@ awaitable<void> run_list_tests(asio::io_context& ctx) {
     cpool::awaitable_latch barrier(exec, num_runners);
     auto host = get_env_var("REDIS_HOST").value_or(DEFAULT_REDIS_HOST);
 
-    logMessage(redis::log_level::info, host);
+    logMessage(logLevel, redis::log_level::info, host);
     client client(exec, host, 6379);
-    client.set_logging_handler(
-        std::bind(logMessage, std::placeholders::_1, std::placeholders::_2));
+    client.set_logging_handler(std::bind(
+        logMessage, logLevel, std::placeholders::_1, std::placeholders::_2));
 
     auto reply = co_await client.ping();
     testForValue("PING", reply, "PONG");
@@ -571,10 +426,10 @@ awaitable<void> run_hash_tests(asio::io_context& ctx) {
     cpool::awaitable_latch barrier(exec, num_runners);
     auto host = get_env_var("REDIS_HOST").value_or(DEFAULT_REDIS_HOST);
 
-    logMessage(redis::log_level::info, host);
+    logMessage(logLevel, redis::log_level::info, host);
     client client(exec, host, 6379);
-    client.set_logging_handler(
-        std::bind(logMessage, std::placeholders::_1, std::placeholders::_2));
+    client.set_logging_handler(std::bind(
+        logMessage, logLevel, std::placeholders::_1, std::placeholders::_2));
 
     auto reply = co_await client.ping();
     testForValue("PING", reply, "PONG");
@@ -669,10 +524,10 @@ awaitable<void> run_set_tests(asio::io_context& ctx) {
     cpool::awaitable_latch barrier(exec, num_runners);
     auto host = get_env_var("REDIS_HOST").value_or(DEFAULT_REDIS_HOST);
 
-    logMessage(redis::log_level::info, host);
+    logMessage(logLevel, redis::log_level::info, host);
     client client(exec, host, 6379);
-    client.set_logging_handler(
-        std::bind(logMessage, std::placeholders::_1, std::placeholders::_2));
+    client.set_logging_handler(std::bind(
+        logMessage, logLevel, std::placeholders::_1, std::placeholders::_2));
 
     auto reply = co_await client.ping();
     testForValue("PING", reply, "PONG");
@@ -700,13 +555,13 @@ awaitable<void> run_password_tests(asio::io_context& ctx) {
     auto config =
         client_config{}.set_host(host).set_port(port).set_password(password);
 
-    logMessage(redis::log_level::info,
+    logMessage(logLevel, redis::log_level::info,
                fmt::format("Logging into {}:{} with password {}", config.host,
                            config.port, config.password));
 
     client client(exec, config);
-    client.set_logging_handler(
-        std::bind(logMessage, std::placeholders::_1, std::placeholders::_2));
+    client.set_logging_handler(std::bind(
+        logMessage, logLevel, std::placeholders::_1, std::placeholders::_2));
 
     auto reply = co_await client.ping();
     testForValue("PING", reply, "PONG");
@@ -834,6 +689,9 @@ awaitable<void> test_json(client& client, int c,
                                         value(string_to_vector("lastSeen")),
                                         value(string_to_vector("loggedOut"))};
         testForArray("JSON.OBJKEYS", reply, array);
+
+        reply = co_await client.send(json_del(key1, "."));
+        testForSuccess("JSON_DEL", reply);
     }
 
     barrier.count_down();
@@ -846,17 +704,14 @@ awaitable<void> run_json_tests(asio::io_context& ctx) {
     cpool::awaitable_latch barrier(exec, num_runners);
     auto host = get_env_var("REDIS_HOST").value_or(DEFAULT_REDIS_HOST);
     client client(exec, host, 6379);
-    client.set_logging_handler(
-        std::bind(logMessage, std::placeholders::_1, std::placeholders::_2));
+    client.set_logging_handler(std::bind(
+        logMessage, logLevel, std::placeholders::_1, std::placeholders::_2));
 
     for (int i = 0; i < num_runners; i++) {
         cpool::co_spawn(ctx, test_json(client, i, barrier), cpool::detached);
     }
 
     co_await barrier.wait();
-
-    auto reply = co_await client.send(flush_all());
-    testForSuccess("FLUSH_ALL", reply);
 
     ctx.stop();
     co_return;

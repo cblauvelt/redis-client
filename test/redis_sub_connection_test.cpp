@@ -2,6 +2,8 @@
 #include <string>
 #include <vector>
 
+#include <cpool/awaitable_latch.hpp>
+
 #include "redis/error.hpp"
 #include "redis/errors.hpp"
 #include "redis/subscriber_connection.hpp"
@@ -55,32 +57,29 @@ awaitable<void> logMessage(log_level target, log_level level,
 }
 
 awaitable<void> connect_and_hold(redis_subscriber_connection& connection,
-                                 std::atomic_int& barrier) {
+                                 cpool::awaitable_latch& barrier) {
     auto conn = co_await connection.get();
     cpool::timer timer(connection.get_executor());
     co_await timer.async_wait(100ms);
-    barrier--;
+    barrier.count_down();
 }
 
 awaitable<void> run_tests(asio::io_context& ctx) {
     auto exec = co_await cpool::net::this_coro::executor;
     auto host = get_env_var("REDIS_HOST").value_or(DEFAULT_REDIS_HOST);
-    std::atomic_int barrier(1);
+    cpool::awaitable_latch latch(exec, 1);
 
     redis_subscriber_connection connection(exec, host, 6379);
     connection.set_logging_handler(std::bind(logMessage, log_level::info,
                                              std::placeholders::_1,
                                              std::placeholders::_2));
 
-    co_spawn(exec, connect_and_hold(connection, barrier), detached);
+    co_spawn(exec, connect_and_hold(connection, latch), detached);
 
     auto conn = co_await connection.get();
     EXPECT_TRUE(connection.connected());
 
-    cpool::timer timer(exec);
-    while (barrier != 0) {
-        co_await timer.async_wait(10ms);
-    }
+    co_await latch.wait();
 
     auto error = co_await connection.async_disconnect();
     EXPECT_FALSE(error);
@@ -88,7 +87,7 @@ awaitable<void> run_tests(asio::io_context& ctx) {
     ctx.stop();
 }
 
-TEST(SubTest, Subscribe) {
+TEST(SubConnection, Subscribe) {
     asio::io_context ctx(1);
 
     cpool::co_spawn(ctx, run_tests(std::ref(ctx)), cpool::detached);

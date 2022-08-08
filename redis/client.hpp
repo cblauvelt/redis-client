@@ -117,6 +117,11 @@ class client : public enable_shared_from_this<client> {
     [[nodiscard]] awaitable<replies> send(cpool::tcp_connection* connection,
                                           commands commands);
 
+    /**
+     * @brief Creates the connection object
+     *
+     * @return std::unique_ptr<cpool::tcp_connection>
+     */
     std::unique_ptr<cpool::tcp_connection> connection_ctor();
 
     [[nodiscard]] awaitable<cpool::error>
